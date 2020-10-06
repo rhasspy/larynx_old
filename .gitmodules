@@ -1,0 +1,4 @@
+[submodule "TTS"]
+	path = TTS
+	url = https://github.com/rhasspy/TTS
+	branch = dev
