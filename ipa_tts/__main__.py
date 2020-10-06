@@ -335,13 +335,26 @@ def do_init(args):
     tts_config["output_path"] = str(model_dir / "model")
     tts_config["phoneme_cache_path"] = str(phoneme_cache_dir)
     tts_config["phoneme_language"] = language
+    tts_config["phoneme_backend"] = "gruut"
 
-    tts_config["enable_eos_bos_chars"] = False
+    # Align faster
+    tts_config["use_forward_attn"] = True
+
+    # Disable DDC
+    tts_config["double_decoder_consistency"] = False
+
+    # Disable global style tokens
     tts_config["use_gst"] = False
     tts_config["gst"]["gst_use_speaker_embedding"] = False
+
+    # Disable speaker embedding
     tts_config["use_external_speaker_embedding_file"] = False
     tts_config["external_speaker_embedding_file"] = None
+    tts_config["use_speaker_embedding"] = False
 
+    # Use custom phonemes
+    tts_config["use_phonemes"] = True
+    tts_config["enable_eos_bos_chars"] = False
     tts_config["characters"] = {
         "pad": pad,
         "eos": "~",

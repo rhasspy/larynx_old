@@ -1,2 +1,2 @@
-gruut==0.0.1
+gruut==0.1.0
 json5
