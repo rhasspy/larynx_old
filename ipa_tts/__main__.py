@@ -233,10 +233,10 @@ def do_init(args):
 
     dataset_items: typing.Dict[str, DatasetItem] = {}
 
-    language = args.language
-    model_name = args.name
-    dataset_dir = Path(args.dataset)
     model_dir = Path(args.model)
+    language = args.language
+    dataset_dir = Path(args.dataset)
+    model_name = args.name or model_dir.name
 
     _LOGGER.debug("Loading gruut language %s", language)
     gruut_lang = gruut.Language.load(language)
@@ -269,19 +269,18 @@ def do_init(args):
     # -------------
 
     pad = "_"
-    eos = "~"
-    bos = "^"
 
-    # Always include pad, eos, bos, and break symbols.
+    # Always include pad and break symbols.
     # In the future, intontation should also be added.
     phonemes_list = [
         pad,
-        eos,
-        bos,
         IPA.BREAK_MINOR.value,
         IPA.BREAK_MAJOR.value,
         IPA.BREAK_WORD.value,
     ] + sorted([p.text for p in gruut_lang.phonemes])
+
+    # Index where actual model phonemes start
+    phoneme_offset = 1
 
     # Map to indexes
     phonemes = {p: i for i, p in enumerate(phonemes_list)}
@@ -333,21 +332,24 @@ def do_init(args):
     tts_config["audio"]["do_trim_silence"] = False
     tts_config["audio"]["signal_norm"] = True
 
-    tts_config["output_path"] = str(model_dir)
+    tts_config["output_path"] = str(model_dir / "model")
     tts_config["phoneme_cache_path"] = str(phoneme_cache_dir)
     tts_config["phoneme_language"] = language
 
     tts_config["enable_eos_bos_chars"] = False
     tts_config["use_gst"] = False
     tts_config["gst"]["gst_use_speaker_embedding"] = False
+    tts_config["use_external_speaker_embedding_file"] = False
+    tts_config["external_speaker_embedding_file"] = None
 
     tts_config["characters"] = {
         "pad": pad,
-        "eos": eos,
-        "bos": bos,
-        "phonemes": phonemes_list,
+        "eos": "~",
+        "bos": "^",
+        "phonemes": phonemes_list[phoneme_offset:],
         "characters": "",
         "punctuations": "",
+        "eos_bos_phonemes": False,
     }
 
     tts_config["datasets"] = [
@@ -369,22 +371,23 @@ def do_init(args):
 
         tts_config["test_sentences_file"] = str(test_sentences_path)
 
-    tts_config_out_path = model_dir / "config.json"
-    with open(tts_config_out_path, "w") as tts_config_file:
-        json.dump(tts_config, tts_config_file, indent=4, ensure_ascii=False)
-
-    _LOGGER.debug("Wrote TTS config to %s", tts_config_out_path)
-
     # -------------------
     # Compute Audio Stats
     # -------------------
 
-    tts_stats_path = str(model_dir / "stats_path.npy")
+    tts_stats_path = str(model_dir / "scale_stats.npy")
 
     if not args.skip_audio_stats:
         _compute_audio_stats(dataset_items, tts_config, tts_stats_path)
 
     tts_config["audio"]["stats_path"] = str(tts_stats_path)
+
+    # Write TTS config
+    tts_config_out_path = model_dir / "config.json"
+    with open(tts_config_out_path, "w") as tts_config_file:
+        json.dump(tts_config, tts_config_file, indent=4, ensure_ascii=False)
+
+    _LOGGER.debug("Wrote TTS config to %s", tts_config_out_path)
 
     # --------------
     # Vocoder config
@@ -421,7 +424,7 @@ def do_init(args):
 
     # Patch vocoder config
     vocoder_config["run_name"] = model_name
-    vocoder_config["output_path"] = str(vocoder_dir)
+    vocoder_config["output_path"] = str(vocoder_dir / "model")
 
     # Use same audio configuration as voice
     vocoder_config["audio"] = tts_config["audio"]
@@ -548,15 +551,15 @@ def get_args() -> argparse.Namespace:
     init_parser = sub_parsers.add_parser(
         "init", help="Initialize a model directory for a dataset"
     )
+    init_parser.add_argument("model", help="Path to model base directory")
     init_parser.add_argument(
         "--language", required=True, help="Language for model (e.g. en-us)"
     )
-    init_parser.add_argument("--name", required=True, help="Name of model")
     init_parser.add_argument(
         "--dataset", required=True, help="Path to dataset directory"
     )
     init_parser.add_argument(
-        "--model", required=True, help="Path to model output directory"
+        "--name", help="Name of model (default: model directory name)"
     )
     init_parser.add_argument(
         "--model-type",
