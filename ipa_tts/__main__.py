@@ -345,6 +345,10 @@ def do_init(args):
 
     # Disable global style tokens
     tts_config["use_gst"] = False
+
+    if not "gst" in tts_config:
+        tts_config["gst"] = {}
+
     tts_config["gst"]["gst_use_speaker_embedding"] = False
 
     # Disable speaker embedding
