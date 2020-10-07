@@ -3,6 +3,7 @@ import argparse
 import concurrent.futures
 import json
 import logging
+import sys
 import typing
 import wave
 from dataclasses import dataclass
@@ -367,6 +368,7 @@ def do_init(args):
         "characters": "",
         "punctuations": "",
         "eos_bos_phonemes": False,
+        "sort_phonemes": False,
     }
 
     tts_config["datasets"] = [
@@ -553,6 +555,35 @@ def do_serve(args):
 # -----------------------------------------------------------------------------
 
 
+def do_phonemize(args):
+    from TTS.utils.io import load_config
+    from TTS.tts.utils.text import make_symbols, phoneme_to_sequence
+
+    c = load_config(args.config)
+    _, phonemes = make_symbols(**c.characters)
+
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+
+        line_indexes = phoneme_to_sequence(
+            line,
+            [c.text_cleaner],
+            language=c.phoneme_language,
+            enable_eos_bos=False,
+            tp=c.characters if "characters" in c.keys() else None,
+            backend=c.phoneme_backend,
+        )
+
+        line_phonemes = [phonemes[i] for i in line_indexes]
+
+        print(line_phonemes)
+
+
+# -----------------------------------------------------------------------------
+
+
 def get_args() -> argparse.Namespace:
     """Parse command-line arguments"""
     parser = argparse.ArgumentParser(prog="ipa-tts")
@@ -598,6 +629,17 @@ def get_args() -> argparse.Namespace:
         help="Batch size for vocoder (default: config value)",
     )
     init_parser.set_defaults(func=do_init)
+
+    # ---------
+    # phonemize
+    # ---------
+    phonemize_parser = sub_parsers.add_parser(
+        "phonemize", help="Path to TTS JSON configuration file"
+    )
+    phonemize_parser.add_argument(
+        "--config", required=True, help="Path to TTS JSON configuration file"
+    )
+    phonemize_parser.set_defaults(func=do_phonemize)
 
     # ----------
     # synthesize
@@ -660,7 +702,13 @@ def get_args() -> argparse.Namespace:
     serve_parser.set_defaults(func=do_serve)
 
     # Shared arguments
-    for sub_parser in [init_parser, synthesize_parser, train_parser, serve_parser]:
+    for sub_parser in [
+        init_parser,
+        synthesize_parser,
+        train_parser,
+        serve_parser,
+        phonemize_parser,
+    ]:
         sub_parser.add_argument(
             "--debug", action="store_true", help="Print DEBUG messages to console"
         )
