@@ -3,6 +3,7 @@ import argparse
 import concurrent.futures
 import json
 import logging
+import re
 import sys
 import typing
 import wave
@@ -347,7 +348,7 @@ def do_init(args):
     # Disable global style tokens
     tts_config["use_gst"] = False
 
-    if not "gst" in tts_config:
+    if "gst" not in tts_config:
         tts_config["gst"] = {}
 
     tts_config["gst"]["gst_use_speaker_embedding"] = False
@@ -526,6 +527,7 @@ def do_train(args):
     #         )
 
     # dataset = Dataset(config, items)
+
     # train_dataset(dataset)
 
 
@@ -556,6 +558,7 @@ def do_serve(args):
 
 
 def do_phonemize(args):
+    """Generate phonemes for text using config"""
     from TTS.utils.io import load_config
     from TTS.tts.utils.text import make_symbols, phoneme_to_sequence
 
@@ -579,6 +582,87 @@ def do_phonemize(args):
         line_phonemes = [phonemes[i] for i in line_indexes]
 
         print(line_phonemes)
+
+
+# -----------------------------------------------------------------------------
+
+
+def do_verify_phonemes(args):
+    """Verify that phoneme cache matches what gruut would produce"""
+    import numpy as np
+    from TTS.utils.io import load_config
+    from TTS.tts.utils.text import make_symbols
+
+    _LOGGER.debug("Loading gruut language %s", args.language)
+    gruut_lang = gruut.Language.load(args.language)
+    assert gruut_lang, f"Unsupported language: {gruut_lang}"
+
+    # Load config
+    c = load_config(args.config)
+    output_path = Path(c.output_path)
+    phoneme_cache_dir = Path(c.phoneme_cache_path)
+    _, phonemes = make_symbols(**c.characters)
+
+    # Offset for pad
+    phoneme_to_id = {p: (i + 1) for i, p in enumerate(phonemes)}
+
+    # Add pad
+    phoneme_to_id["_"] = 0
+
+    # Load lexicon and missing words
+    lexicon = gruut_lang.phonemizer.lexicon
+
+    missing_words_path = output_path / "missing_words.txt"
+    if missing_words_path.is_file():
+        _LOGGER.debug("Loading missing words from %s", missing_words_path)
+        with open(missing_words_path, "r") as missing_words_file:
+            gruut.utils.load_lexicon(missing_words_file, lexicon=lexicon)
+
+    # Load metadata
+    id_to_text = {}
+    for ds in c.datasets:
+        metadata_path = Path(ds["path"]) / ds["meta_file_train"]
+        with open(metadata_path, "r") as metadata_file:
+            for line in metadata_file:
+                line = line.strip()
+                if line:
+                    item_id, item_text = line.split("|", maxsplit=1)
+                    id_to_text[item_id] = item_text
+
+    id_to_phonemes = {}
+    for phoneme_path in phoneme_cache_dir.glob("*.npy"):
+        item_id = re.sub("_phoneme$", "", phoneme_path.stem)
+        _LOGGER.debug("Processing %s (id=%s)", phoneme_path, item_id)
+
+        sequence = np.load(phoneme_path, allow_pickle=True)
+        actual_phonemes = [phonemes[index] for index in sequence]
+
+        expected_phonemes = id_to_phonemes.get(item_id)
+        if not expected_phonemes:
+            # Compute expected phonmemes
+            expected_phonemes = []
+
+            item_text = id_to_text[item_id]
+            for sentence in gruut_lang.tokenizer.tokenize(item_text):
+                # Choose first pronunciation for each word
+                word_phonemes = [
+                    wp[0]
+                    for wp in gruut_lang.phonemizer.phonemize(
+                        sentence.clean_words, word_indexes=True, word_breaks=True
+                    )
+                    if wp
+                ]
+
+            expected_phonemes.extend(p for ps in word_phonemes for p in ps)
+
+            # Associate with item id
+            id_to_phonemes[item_id] = expected_phonemes
+
+        assert (
+            actual_phonemes == expected_phonemes
+        ), f"Got {actual_phonemes}, expected {expected_phonemes} for '{item_text}'"
+
+        print(item_id, "OK")
 
 
 # -----------------------------------------------------------------------------
@@ -634,12 +718,27 @@ def get_args() -> argparse.Namespace:
     # phonemize
     # ---------
     phonemize_parser = sub_parsers.add_parser(
-        "phonemize", help="Path to TTS JSON configuration file"
+        "phonemize",
+        help="Generate phonemes for text from stdin according to TTS config",
     )
     phonemize_parser.add_argument(
         "--config", required=True, help="Path to TTS JSON configuration file"
     )
     phonemize_parser.set_defaults(func=do_phonemize)
+
+    # ---------------
+    # verify-phonemes
+    # ---------------
+    verify_phonemes_parser = sub_parsers.add_parser(
+        "verify-phonemes", help="Path to TTS JSON configuration file"
+    )
+    verify_phonemes_parser.add_argument(
+        "--language", required=True, help="Language for model (e.g. en-us)"
+    )
+    verify_phonemes_parser.add_argument(
+        "--config", required=True, help="Path to TTS JSON configuration file"
+    )
+    verify_phonemes_parser.set_defaults(func=do_verify_phonemes)
 
     # ----------
     # synthesize
@@ -708,6 +807,7 @@ def get_args() -> argparse.Namespace:
         train_parser,
         serve_parser,
         phonemize_parser,
+        verify_phonemes_parser,
     ]:
         sub_parser.add_argument(
             "--debug", action="store_true", help="Print DEBUG messages to console"
