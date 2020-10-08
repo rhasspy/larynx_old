@@ -10,7 +10,7 @@ if [[ -d "${venv}" ]]; then
     source "${venv}/bin/activate"
 fi
 
-python_files=("${src_dir}/ipa_tts/")
+python_files=("${src_dir}/larynx/")
 
 export PYTHONPATH="${src_dir}:${PYTHONPATH}"
 
