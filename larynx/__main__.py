@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
+"""Command-line interface to larynx"""
 import argparse
 import concurrent.futures
 import json
 import logging
 import re
+import string
 import sys
+import subprocess
 import typing
 import wave
 from dataclasses import dataclass
@@ -12,7 +15,7 @@ from pathlib import Path
 
 import gruut
 
-_LOGGER = logging.getLogger("ipa_tts")
+_LOGGER = logging.getLogger("larynx")
 
 _DIR = Path(__file__).parent
 
@@ -464,27 +467,57 @@ def do_init(args):
 
 def do_synthesize(args):
     """Synthesize WAV data from text"""
-    pass
+    from .synthesize import Synthesizer
 
-    # from .synthesize import Synthesizer
+    if args.output_file:
+        args.output_file = Path(args.output_file)
 
-    # synthesizer = Synthesizer(
-    #     tts_model_path=args.model,
-    #     tts_config_path=args.config,
-    #     vocoder_model_path=args.vocoder_model,
-    #     vocoder_config_path=args.vocoder_config,
-    #     phonemes_path=args.phonemes,
-    #     use_cuda=args.use_cuda,
-    # )
+    if args.output_dir:
+        args.output_dir = Path(args.output_dir)
 
-    # try:
-    #     for text in sys.stdin:
-    #         text = text.strip()
-    #         if text:
-    #             wav_bytes = synthesizer.synthesize(text)
-    #             subprocess.run(["play", "-q", "-t" "wav", "-"], input=wav_bytes)
-    # except KeyboardInterrupt:
-    #     pass
+    # Load synthesizer
+    synthesizer = Synthesizer(
+        config_path=args.config,
+        model_path=args.model,
+        use_cuda=args.use_cuda,
+        vocoder_path=args.vocoder_model,
+        vocoder_config_path=args.vocoder_config,
+    )
+
+    synthesizer.load()
+
+    if args.text:
+        texts = args.text
+    else:
+        texts = sys.stdin
+
+    try:
+        for text in texts:
+            text = text.strip()
+            if text:
+                wav_bytes = synthesizer.synthesize(text)
+
+                if args.output_file:
+                    args.output_file.parent.mkdir(parents=True, exist_ok=True)
+                    args.output_file.write_bytes(wav_bytes)
+                    _LOGGER.debug("Wrote %s", args.output_file)
+                elif args.output_dir:
+                    file_name = text.replace(" ", "_")
+                    file_name = (
+                        file_name.translate(
+                            str.maketrans("", "", string.punctuation.replace("_", ""))
+                        )
+                        + ".wav"
+                    )
+
+                    args.output_dir.mkdir(parents=True, exist_ok=True)
+                    file_path = Path(args.output_dir / file_name)
+                    file_path.write_bytes(wav_bytes)
+                    _LOGGER.debug("Wrote %s", file_path)
+                else:
+                    subprocess.run(["play", "-q", "-t" "wav", "-"], input=wav_bytes)
+    except KeyboardInterrupt:
+        pass
 
 
 # -----------------------------------------------------------------------------
@@ -759,7 +792,12 @@ def get_args() -> argparse.Namespace:
     synthesize_parser.add_argument(
         "--vocoder-config", help="Path to vocoder model JSON config file"
     )
-    synthesize_parser.add_argument("--phonemes", help="Path to phonemes text file")
+    synthesize_parser.add_argument(
+        "--output-dir", help="Directory to write output WAV files (default: play)"
+    )
+    synthesize_parser.add_argument(
+        "--output-file", help="Path to write output WAV file"
+    )
     synthesize_parser.add_argument(
         "--use-cuda", action="store_true", help="Use GPU (CUDA) for synthesis"
     )
@@ -768,44 +806,44 @@ def get_args() -> argparse.Namespace:
     # -----
     # train
     # -----
-    train_parser = sub_parsers.add_parser(
-        "train", help="Train a new model or tune an existing model"
-    )
-    train_parser.set_defaults(func=do_train)
-    train_parser.add_argument("metadata", help="JSONL file with training metadata")
+    # train_parser = sub_parsers.add_parser(
+    #     "train", help="Train a new model or tune an existing model"
+    # )
+    # train_parser.set_defaults(func=do_train)
+    # train_parser.add_argument("metadata", help="JSONL file with training metadata")
 
     # -----
     # serve
     # -----
-    serve_parser = sub_parsers.add_parser("serve", help="Run web server for synthesis")
-    serve_parser.add_argument(
-        "--host", default="0.0.0.0", help="Host for web server (default: 0.0.0.0)"
-    )
-    serve_parser.add_argument(
-        "--port", type=int, default=5002, help="Port for web server (default: 5002)"
-    )
-    serve_parser.add_argument(
-        "--model", required=True, help="Path to TTS model checkpoint"
-    )
-    serve_parser.add_argument("--config", help="Path to TTS model JSON config file")
-    serve_parser.add_argument(
-        "--vocoder-model", help="Path to vocoder model checkpoint"
-    )
-    serve_parser.add_argument(
-        "--vocoder-config", help="Path to vocoder model JSON config file"
-    )
-    serve_parser.add_argument("--phonemes", help="Path to phonemes text file")
-    serve_parser.add_argument(
-        "--use-cuda", action="store_true", help="Use GPU (CUDA) for synthesis"
-    )
-    serve_parser.set_defaults(func=do_serve)
+    # serve_parser = sub_parsers.add_parser("serve", help="Run web server for synthesis")
+    # serve_parser.add_argument(
+    #     "--host", default="0.0.0.0", help="Host for web server (default: 0.0.0.0)"
+    # )
+    # serve_parser.add_argument(
+    #     "--port", type=int, default=5002, help="Port for web server (default: 5002)"
+    # )
+    # serve_parser.add_argument(
+    #     "--model", required=True, help="Path to TTS model checkpoint"
+    # )
+    # serve_parser.add_argument("--config", help="Path to TTS model JSON config file")
+    # serve_parser.add_argument(
+    #     "--vocoder-model", help="Path to vocoder model checkpoint"
+    # )
+    # serve_parser.add_argument(
+    #     "--vocoder-config", help="Path to vocoder model JSON config file"
+    # )
+    # serve_parser.add_argument("--phonemes", help="Path to phonemes text file")
+    # serve_parser.add_argument(
+    #     "--use-cuda", action="store_true", help="Use GPU (CUDA) for synthesis"
+    # )
+    # serve_parser.set_defaults(func=do_serve)
 
     # Shared arguments
     for sub_parser in [
         init_parser,
         synthesize_parser,
-        train_parser,
-        serve_parser,
+        # train_parser,
+        # serve_parser,
         phonemize_parser,
         verify_phonemes_parser,
     ]:
