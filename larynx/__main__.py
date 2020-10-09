@@ -4,6 +4,7 @@ import argparse
 import concurrent.futures
 import json
 import logging
+import os
 import re
 import string
 import sys
@@ -427,25 +428,8 @@ def do_init(args):
     with open(vocoder_config_in_path, "r") as vocoder_config_file:
         vocoder_config = json5.load(vocoder_config_file)
 
-    # Check sample rate
-    vocoder_sample_rate = vocoder_config["audio"]["sample_rate"]
-    if sample_rate == vocoder_sample_rate:
-        # Use data as is
-        _LOGGER.debug("Using existing data at %s", dataset_dir)
-        vocoder_config["data_path"] = str(dataset_dir)
-    else:
-        # TODO: Need to resample
-        assert False, "Need to resample"
-        _LOGGER.warning(
-            "Vocoder sample rate is %s while TTS sample rate is %s",
-            vocoder_sample_rate,
-            sample_rate,
-        )
-
-        data_dir = vocoder_dir / "data"
-        data_dir.mkdir(parents=True, exist_ok=True)
-
     # Patch vocoder config
+    vocoder_config["data_path"] = str(dataset_dir)
     vocoder_config["run_name"] = model_name
     vocoder_config["output_path"] = str(vocoder_dir / "model")
 
@@ -464,11 +448,23 @@ def do_init(args):
 
 # -----------------------------------------------------------------------------
 
+# TODO: Allow phoneme input
+
 
 def do_synthesize(args):
     """Synthesize WAV data from text"""
     from .synthesize import Synthesizer
 
+    # Guess missing config paths
+    if not args.config:
+        args.config = os.path.join(os.path.dirname(args.model), "config.json")
+
+    if args.vocoder_model and not args.vocoder_config:
+        args.vocoder_config = os.path.join(
+            os.path.dirname(args.vocoder_model), "config.json"
+        )
+
+    # Convert to paths
     if args.output_file:
         args.output_file = Path(args.output_file)
 
@@ -486,22 +482,28 @@ def do_synthesize(args):
 
     synthesizer.load()
 
+    # Args or stdin
     if args.text:
         texts = args.text
     else:
         texts = sys.stdin
 
     try:
+        # Process sentences line by line
         for text in texts:
             text = text.strip()
             if text:
                 wav_bytes = synthesizer.synthesize(text)
 
                 if args.output_file:
+                    # Write to single file.
+                    # Will overwrite if multiple sentences.
                     args.output_file.parent.mkdir(parents=True, exist_ok=True)
                     args.output_file.write_bytes(wav_bytes)
                     _LOGGER.debug("Wrote %s", args.output_file)
                 elif args.output_dir:
+                    # Write to directory.
+                    # Name WAV file after text input.
                     file_name = text.replace(" ", "_")
                     file_name = (
                         file_name.translate(
@@ -515,53 +517,13 @@ def do_synthesize(args):
                     file_path.write_bytes(wav_bytes)
                     _LOGGER.debug("Wrote %s", file_path)
                 else:
-                    subprocess.run(["play", "-q", "-t" "wav", "-"], input=wav_bytes)
+                    # Play using sox
+                    subprocess.run(
+                        ["play", "-q", "-t", "wav", "-"], input=wav_bytes, check=True
+                    )
     except KeyboardInterrupt:
+        # CTRL + C
         pass
-
-
-# -----------------------------------------------------------------------------
-
-
-def do_train(args):
-    """Train a new text to speech voice"""
-    pass
-
-    # from .config import Config
-    # from .dataset import Dataset, DatasetItem
-    # from .train import train_dataset
-
-    # config = Config(name="kathy", language="en-us")
-
-    # items = []
-    # metadata_path = Path(args.metadata)
-    # wav_dir = metadata_path.parent / "wav"
-
-    # _LOGGER.debug("Loading dataset from %s", metadata_path)
-    # with open(metadata_path, "r") as metadata_file:
-    #     for line in metadata_file:
-    #         line = line.strip()
-    #         if not line:
-    #             continue
-
-    #         item_obj = json.loads(line)
-    #         phoneme_indexes = []
-    #         for word_pron in item_obj["pronunciation"]:
-    #             phoneme_indexes.extend(
-    #                 [config.phoneme_to_id[phoneme] for phoneme in word_pron if phoneme]
-    #             )
-
-    #         # Get WAV path
-    #         item_id = item_obj["id"]
-    #         wav_path = (wav_dir / item_id).with_suffix(".wav")
-
-    #         items.append(
-    #             DatasetItem(phoneme_indexes=phoneme_indexes, wav_path=wav_path)
-    #         )
-
-    # dataset = Dataset(config, items)
-
-    # train_dataset(dataset)
 
 
 # -----------------------------------------------------------------------------
@@ -569,22 +531,32 @@ def do_train(args):
 
 def do_serve(args):
     """Run web server for synthesis"""
-    pass
+    from larynx.server import get_app
+    from larynx.synthesize import Synthesizer
 
-    # from .server import get_app
-    # from .synthesize import Synthesizer
+    # Guess missing config paths
+    if not args.config:
+        args.config = os.path.join(os.path.dirname(args.model), "config.json")
 
-    # synthesizer = Synthesizer(
-    #     tts_model_path=args.model,
-    #     tts_config_path=args.config,
-    #     vocoder_model_path=args.vocoder_model,
-    #     vocoder_config_path=args.vocoder_config,
-    #     phonemes_path=args.phonemes,
-    #     use_cuda=args.use_cuda,
-    # )
+    if args.vocoder_model and not args.vocoder_config:
+        args.vocoder_config = os.path.join(
+            os.path.dirname(args.vocoder_model), "config.json"
+        )
 
-    # app = get_app(synthesizer)
-    # app.run(host=args.host, port=args.port)
+    # Load synthesizer
+    synthesizer = Synthesizer(
+        config_path=args.config,
+        model_path=args.model,
+        use_cuda=args.use_cuda,
+        vocoder_path=args.vocoder_model,
+        vocoder_config_path=args.vocoder_config,
+    )
+
+    synthesizer.load()
+
+    # Run web server
+    app = get_app(synthesizer)
+    app.run(host=args.host, port=args.port)
 
 
 # -----------------------------------------------------------------------------
@@ -804,46 +776,35 @@ def get_args() -> argparse.Namespace:
     synthesize_parser.set_defaults(func=do_synthesize)
 
     # -----
-    # train
-    # -----
-    # train_parser = sub_parsers.add_parser(
-    #     "train", help="Train a new model or tune an existing model"
-    # )
-    # train_parser.set_defaults(func=do_train)
-    # train_parser.add_argument("metadata", help="JSONL file with training metadata")
-
-    # -----
     # serve
     # -----
-    # serve_parser = sub_parsers.add_parser("serve", help="Run web server for synthesis")
-    # serve_parser.add_argument(
-    #     "--host", default="0.0.0.0", help="Host for web server (default: 0.0.0.0)"
-    # )
-    # serve_parser.add_argument(
-    #     "--port", type=int, default=5002, help="Port for web server (default: 5002)"
-    # )
-    # serve_parser.add_argument(
-    #     "--model", required=True, help="Path to TTS model checkpoint"
-    # )
-    # serve_parser.add_argument("--config", help="Path to TTS model JSON config file")
-    # serve_parser.add_argument(
-    #     "--vocoder-model", help="Path to vocoder model checkpoint"
-    # )
-    # serve_parser.add_argument(
-    #     "--vocoder-config", help="Path to vocoder model JSON config file"
-    # )
-    # serve_parser.add_argument("--phonemes", help="Path to phonemes text file")
-    # serve_parser.add_argument(
-    #     "--use-cuda", action="store_true", help="Use GPU (CUDA) for synthesis"
-    # )
-    # serve_parser.set_defaults(func=do_serve)
+    serve_parser = sub_parsers.add_parser("serve", help="Run web server for synthesis")
+    serve_parser.add_argument(
+        "--host", default="0.0.0.0", help="Host for web server (default: 0.0.0.0)"
+    )
+    serve_parser.add_argument(
+        "--port", type=int, default=5002, help="Port for web server (default: 5002)"
+    )
+    serve_parser.add_argument(
+        "--model", required=True, help="Path to TTS model checkpoint"
+    )
+    serve_parser.add_argument("--config", help="Path to TTS model JSON config file")
+    serve_parser.add_argument(
+        "--vocoder-model", help="Path to vocoder model checkpoint"
+    )
+    serve_parser.add_argument(
+        "--vocoder-config", help="Path to vocoder model JSON config file"
+    )
+    serve_parser.add_argument(
+        "--use-cuda", action="store_true", help="Use GPU (CUDA) for synthesis"
+    )
+    serve_parser.set_defaults(func=do_serve)
 
     # Shared arguments
     for sub_parser in [
         init_parser,
         synthesize_parser,
-        # train_parser,
-        # serve_parser,
+        serve_parser,
         phonemize_parser,
         verify_phonemes_parser,
     ]:
