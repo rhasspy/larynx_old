@@ -4,6 +4,8 @@ A [fork](https://github.com/rhasspy/TTS) of [MozillaTTS](https://github.com/mozi
 
 Will be used by the [Rhasspy project](https://github.com/rhasspy) to train freely available voices from public datasets.
 
+See the [tutorial](docs/tutorial.md) below for step by step instructions.
+
 ## Dependencies
 
 * Python 3.7 or higher
