@@ -314,7 +314,7 @@ def do_init(args):
         dataset_phonemes_path = model_dir / "dataset_phonemes.csv"
 
         with open(dataset_phonemes_path, "w") as dataset_phonemes_file:
-            phonemes_writer = csv.Writer(dataset_phonemes_file, delimiter="|")
+            phonemes_writer = csv.writer(dataset_phonemes_file, delimiter="|")
             phonemes_writer.writerow(("id", "text", "phonemes"))
 
             for phoneme_path in phoneme_cache_dir.glob("*.npy"):

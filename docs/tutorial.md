@@ -188,7 +188,9 @@ $ bin/larynx init local/kathleen/train \
 After some time, you should have the following files in `local/kathleen/train`:
 
 * `config.json` - MozillaTTS config file for voice
+* `dataset_phonemes.csv` - phonemized sentences from all datasets
 * `guessed_words.txt` - words whose pronunciations had to be guessed
+* `phonemes.txt` - model phonemes with their index
 * `phoneme_cache/` - directory with pre-computed phonemes for all datasets
 * `scale_stats.npy` - audio statistics for all datasets
 * `vocoder/`
