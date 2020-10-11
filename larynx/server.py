@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Web server for synthesis"""
-import argparse
 import logging
 import time
 import uuid
@@ -18,6 +17,7 @@ _LOGGER = logging.getLogger("larynx.server")
 
 # TODO: Show phonemes table
 # TODO: Allow phoneme input
+
 
 def get_app(synthesizer: Synthesizer):
     """Create Flask app and endpoints"""
@@ -47,10 +47,3 @@ def get_app(synthesizer: Synthesizer):
         return Response(wav_bytes, mimetype="audio/wav")
 
     return app
-
-
-# -----------------------------------------------------------------------------
-
-
-if __name__ == "__main__":
-    main()

@@ -2,13 +2,14 @@
 """Command-line interface to larynx"""
 import argparse
 import concurrent.futures
+import csv
 import json
 import logging
 import os
 import re
 import string
-import sys
 import subprocess
+import sys
 import typing
 import wave
 from dataclasses import dataclass
@@ -235,6 +236,7 @@ def _compute_audio_stats(
 def do_init(args):
     """Initialize a model directory for training"""
     import json5
+    import numpy as np
     from gruut_ipa import IPA
 
     dataset_items: typing.Dict[str, DatasetItem] = {}
@@ -285,6 +287,12 @@ def do_init(args):
         IPA.BREAK_WORD.value,
     ] + sorted([p.text for p in gruut_lang.phonemes])
 
+    # Write phonemes to a text file
+    phonemes_text_path = model_dir / "phonemes.txt"
+    with open(phonemes_text_path, "w") as phonemes_text_file:
+        for phoneme_idx, phoneme in enumerate(phonemes_list):
+            print(phoneme_idx, phoneme, file=phonemes_text_file)
+
     # Index where actual model phonemes start
     phoneme_offset = 1
 
@@ -300,6 +308,23 @@ def do_init(args):
         _compute_phonemes(
             dataset_items, gruut_lang, phonemes, model_dir, phoneme_cache_dir
         )
+
+    # Write phonemized sentences
+    if phoneme_cache_dir.is_dir():
+        dataset_phonemes_path = model_dir / "dataset_phonemes.csv"
+
+        with open(dataset_phonemes_path, "w") as dataset_phonemes_file:
+            phonemes_writer = csv.Writer(dataset_phonemes_file, delimiter="|")
+            phonemes_writer.writerow(("id", "text", "phonemes"))
+
+            for phoneme_path in phoneme_cache_dir.glob("*.npy"):
+                item_id = re.sub("_phoneme$", "", phoneme_path.stem)
+                sequence = np.load(phoneme_path, allow_pickle=True)
+                actual_phonemes = [phonemes_list[index] for index in sequence]
+
+                item = dataset_items[item_id]
+                actual_phonemes_str = " ".join(actual_phonemes)
+                phonemes_writer.writerow((item_id, item.text, actual_phonemes_str))
 
     # ----------
     # TTS Config
