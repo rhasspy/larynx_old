@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import io
 import json
+import os
 import time
 
 import torch
@@ -94,6 +95,16 @@ class Synthesizer:
         # load the config
         C = load_config(self.config_path)
         self.config = C
+
+        stats_path = C.audio.get("stats_path")
+        if stats_path and not os.path.isfile(stats_path):
+            # Look for stats next to config
+            model_stats_path = os.path.join(
+                os.path.dirname(self.config_path), "scale_stats.npy"
+            )
+            if os.path.isfile(model_stats_path):
+                # Patch config
+                C.audio["stats_path"] = model_stats_path
 
         C.forward_attn_mask = True
 
