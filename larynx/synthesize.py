@@ -25,6 +25,7 @@ def tts(
     speaker_fileid,
     speaker_embedding=None,
     gst_style=None,
+    text_is_phonemes=False,
 ):
     t_1 = time.time()
     waveform, _, _, mel_postnet_spec, _, _ = synthesis(
@@ -41,6 +42,7 @@ def tts(
         speaker_embedding=speaker_embedding,
         backend="torch",
         do_trim_silence=False,
+        text_is_phonemes=text_is_phonemes,
     )
 
     if CONFIG.model == "Tacotron" and not use_gl:
@@ -199,7 +201,7 @@ class Synthesizer:
 
         self.gst_style = gst_style
 
-    def synthesize(self, text: str) -> bytes:
+    def synthesize(self, text: str, text_is_phonemes: bool = False) -> bytes:
         """Synthesize WAV bytes from text"""
         if not self.model:
             self.load()
@@ -215,6 +217,7 @@ class Synthesizer:
             self.speaker_fileid,
             speaker_embedding=self.speaker_embedding,
             gst_style=self.gst_style,
+            text_is_phonemes=text_is_phonemes,
         )
 
         with io.BytesIO() as wav_io:

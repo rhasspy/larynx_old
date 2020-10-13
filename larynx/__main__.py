@@ -64,6 +64,7 @@ class DatasetItem:
 
 @dataclass
 class AudioStats:
+    """Audio statistics for scale_stats.npy"""
     mel_sum: float = 0
     mel_square_sum: float = 0
     linear_sum: float = 0
@@ -473,8 +474,6 @@ def do_init(args):
 
 # -----------------------------------------------------------------------------
 
-# TODO: Allow phoneme input
-
 
 def do_synthesize(args):
     """Synthesize WAV data from text"""
@@ -507,6 +506,20 @@ def do_synthesize(args):
 
     synthesizer.load()
 
+    # Fix logging (something in MozillaTTS is changing the level)
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
+
+    # Accents
+    accent_lang = None
+    phoneme_map: typing.Dict[str, typing.List[str]] = {}
+    if args.accent_language:
+        source_language = synthesizer.config["phoneme_language"]
+        accent_lang = gruut.Language.load(args.accent_language)
+        phoneme_map = accent_lang.accents[source_language]
+
     # Args or stdin
     if args.text:
         texts = args.text
@@ -518,7 +531,46 @@ def do_synthesize(args):
         for text in texts:
             text = text.strip()
             if text:
-                wav_bytes = synthesizer.synthesize(text)
+                text_is_phonemes = args.phonemes
+
+                if text_is_phonemes:
+                    # Interpret text input as phonemes with a separator
+                    text = text.split(args.phoneme_separator)
+                elif accent_lang and phoneme_map:
+                    # Interpret text in the accent language, map to phonemes in
+                    # the voice language.
+                    text_phonemes = []
+                    for sentence in accent_lang.tokenizer.tokenize(text):
+                        # Choose first pronunciation for each word
+                        word_phonemes = [
+                            wp[0]
+                            for wp in accent_lang.phonemizer.phonemize(
+                                sentence.clean_words,
+                                word_indexes=True,
+                                word_breaks=True,
+                            )
+                            if wp
+                        ]
+
+                        # Do phoneme mapping
+                        for wp in word_phonemes:
+                            for p in wp:
+                                p2 = phoneme_map.get(p)
+                                if p2:
+                                    text_phonemes.extend(p2)
+                                else:
+                                    text_phonemes.append(p)
+
+                    _LOGGER.debug(text_phonemes)
+                    text = text_phonemes
+                    text_is_phonemes = True
+
+                # -------------------------------------------------------------
+
+                # Do synthesis
+                wav_bytes = synthesizer.synthesize(
+                    text, text_is_phonemes=text_is_phonemes
+                )
 
                 if args.output_file:
                     # Write to single file.
@@ -595,7 +647,17 @@ def do_phonemize(args):
     c = load_config(args.config)
     _, phonemes = make_symbols(**c.characters)
 
-    for line in sys.stdin:
+    if args.text:
+        # Use arguments
+        texts = args.text
+    else:
+        # Use stdin
+        texts = sys.stdin
+
+        if os.isatty(sys.stdin.fileno()):
+            print("Reading text from stdin...", file=sys.stderr)
+
+    for line in texts:
         line = line.strip()
         if not line:
             continue
@@ -611,7 +673,7 @@ def do_phonemize(args):
 
         line_phonemes = [phonemes[i] for i in line_indexes]
 
-        print(line_phonemes)
+        print(args.separator.join(line_phonemes))
 
 
 # -----------------------------------------------------------------------------
@@ -752,7 +814,15 @@ def get_args() -> argparse.Namespace:
         help="Generate phonemes for text from stdin according to TTS config",
     )
     phonemize_parser.add_argument(
+        "text", nargs="*", help="Text to phonemize (default: stdin)"
+    )
+    phonemize_parser.add_argument(
         "--config", required=True, help="Path to TTS JSON configuration file"
+    )
+    phonemize_parser.add_argument(
+        "--separator",
+        default="",
+        help="Separator to add between phonemes (default: none)",
     )
     phonemize_parser.set_defaults(func=do_phonemize)
 
@@ -797,6 +867,17 @@ def get_args() -> argparse.Namespace:
     )
     synthesize_parser.add_argument(
         "--use-cuda", action="store_true", help="Use GPU (CUDA) for synthesis"
+    )
+    synthesize_parser.add_argument(
+        "--phonemes", action="store_true", help="Text input is phonemes"
+    )
+    synthesize_parser.add_argument(
+        "--phoneme-separator",
+        default=" ",
+        help="Separator between input phonemes (default: space)",
+    )
+    synthesize_parser.add_argument(
+        "--accent-language", help="Map phonemes from accent language"
     )
     synthesize_parser.set_defaults(func=do_synthesize)
 
