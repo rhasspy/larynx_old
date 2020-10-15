@@ -90,7 +90,7 @@ def get_app(
     def api_tts():
         """Text to speech endpoint"""
         if request.method == "POST":
-            text = request.data.encode()
+            text = request.data.decode()
         else:
             text = request.args.get("text")
 
@@ -105,9 +105,9 @@ def get_app(
     def api_phonemize():
         """Text to speech endpoint"""
         if request.method == "POST":
-            text = request.data.encode()
+            text = request.data.decode()
         else:
-            text = request.args.get("text")
+            text = request.args.get("text", "")
 
         assert gruut_lang, "No gruut language set"
         text_phonemes = []
@@ -126,10 +126,14 @@ def get_app(
         return "".join(text_phonemes)
 
     # MaryTTS compatibility layer
-    @app.route("/process", methods=["GET"])
+    @app.route("/process", methods=["GET", "POST"])
     def api_process():
         """MaryTTS-compatible /process endpoint"""
-        text = request.args.get("INPUT_TEXT", "")
+        if request.method == "POST":
+            text = request.data.decode()
+        else:
+            text = request.args.get("INPUT_TEXT", "")
+
         wav_bytes = text_to_wav(text)
 
         return Response(wav_bytes, mimetype="audio/wav")
