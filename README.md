@@ -1,5 +1,7 @@
 # Larynx
 
+![Larynx logo](docs/img/logo.png)
+
 A [fork](https://github.com/rhasspy/TTS) of [MozillaTTS](https://github.com/mozilla/TTS) that uses [gruut](https://github.com/rhasspy/gruut) for cleaning and phonemizing text.
 
 Will be used by the [Rhasspy project](https://github.com/rhasspy) to train freely available voices from public datasets.
@@ -12,6 +14,11 @@ See the [tutorial](docs/tutorial.md) below for step by step instructions.
 * [PyTorch](https://pytorch.org/) >= 1.5
 * [gruut](https://github.com/rhasspy/gruut)
 * [rhasspy/TTS](https://github.com/rhasspy/TTS) (MozillaTTS fork, `dev` branch)
+
+## Voices
+
+* Dutch (`nl`)
+    * [`nl-rdh`](https://github.com/rhasspy/nl_larynx-rdh) ([Samples](https://github.com/rhasspy/nl_larynx-rdh/blob/master/samples))
 
 ## Differences from MozillaTTS
 
@@ -36,7 +43,7 @@ Contrast this with the set of phonemes (45) used by [gruut](https://github.com/r
 _ | ‖ # aɪ aʊ b d d͡ʒ eɪ f h i iː j k l m n oʊ p s t t͡ʃ uː v w z æ ð ŋ ɑ ɑː ɔ ɔɪ ə ɛ ɝ ɡ ɪ ɹ ʃ ʊ ʌ ʒ θ
 ```
 
-Fewer phonemes means smaller models, which means faster training and synthesis.
+Fewer phonemes means smaller models, which means faster training and synthesis. Unfortunately, this means **Larynx models are not compatible with vanilla MozillaTTS.**
 
 Larynx is intended to be used on small datasets from volunteers, typically with only 1,000 examples. We therefore do more work upfront, making it so the model does not have to learn about [dipthongs](https://en.wikipedia.org/wiki/Diphthong), short/long vowels, or all ways of writing [breaks](https://en.wikipedia.org/wiki/Prosodic_unit).
 

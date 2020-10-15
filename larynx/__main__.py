@@ -638,8 +638,11 @@ def do_serve(args):
     else:
         logging.getLogger().setLevel(logging.INFO)
 
+    # Load language
+    gruut_lang = gruut.Language.load(synthesizer.config.phoneme_language)
+
     # Run web server
-    app = get_app(synthesizer, cache_dir=args.cache_dir)
+    app = get_app(synthesizer, gruut_lang=gruut_lang, cache_dir=args.cache_dir)
     app.run(host=args.host, port=args.port)
 
 

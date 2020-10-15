@@ -7,6 +7,7 @@ import typing
 import uuid
 from pathlib import Path
 
+import gruut
 from flask import Flask, Response, render_template, request, send_from_directory
 from flask_cors import CORS
 
@@ -22,14 +23,16 @@ _LOGGER = logging.getLogger("larynx.server")
 
 
 def get_app(
-    synthesizer: Synthesizer, cache_dir: typing.Optional[typing.Union[str, Path]] = None
+    synthesizer: Synthesizer,
+    gruut_lang: typing.Optional[gruut.Language] = None,
+    cache_dir: typing.Optional[typing.Union[str, Path]] = None,
 ):
     """Create Flask app and endpoints"""
     if cache_dir:
         cache_dir = Path(cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def text_to_wav(text: str) -> bytes:
+    def text_to_wav(text: str, text_is_phonemes: bool = False) -> bytes:
         _LOGGER.debug("Text: %s", text)
 
         wav_bytes: typing.Optional[bytes] = None
@@ -38,7 +41,7 @@ def get_app(
         if cache_dir:
             # Check cache first
             sentence_hash = hashlib.md5()
-            sentence_hash.update(text.encode())
+            sentence_hash.update(f"phonemes-{text_is_phonemes}_{text}".encode())
             cached_wav_path = cache_dir / f"{sentence_hash.hexdigest()}.wav"
 
             if cached_wav_path.is_file():
@@ -48,7 +51,7 @@ def get_app(
         if not wav_bytes:
             _LOGGER.debug("Synthesizing...")
             start_time = time.time()
-            wav_bytes = synthesizer.synthesize(text)
+            wav_bytes = synthesizer.synthesize(text, text_is_phonemes=text_is_phonemes)
             end_time = time.time()
 
             _LOGGER.debug(
@@ -71,7 +74,7 @@ def get_app(
 
     @app.route("/")
     def app_index():
-        return render_template("index.html")
+        return render_template("index.html", lang=gruut_lang)
 
     @app.route("/css/<path:filename>", methods=["GET"])
     def css(filename) -> Response:
@@ -91,9 +94,36 @@ def get_app(
         else:
             text = request.args.get("text")
 
-        wav_bytes = text_to_wav(text)
+        # True if input text is actually phonemes
+        text_is_phonemes = request.args.get("phonemes", "").strip().lower() == "true"
+
+        wav_bytes = text_to_wav(text, text_is_phonemes=text_is_phonemes)
 
         return Response(wav_bytes, mimetype="audio/wav")
+
+    @app.route("/api/phonemize", methods=["GET", "POST"])
+    def api_phonemize():
+        """Text to speech endpoint"""
+        if request.method == "POST":
+            text = request.data.encode()
+        else:
+            text = request.args.get("text")
+
+        assert gruut_lang, "No gruut language set"
+        text_phonemes = []
+        for sentence in gruut_lang.tokenizer.tokenize(text):
+            # Use first pronunciation
+            word_phonemes = [
+                wp[0]
+                for wp in gruut_lang.phonemizer.phonemize(
+                    sentence.clean_words, word_indexes=True, word_breaks=True
+                )
+                if wp
+            ]
+
+            text_phonemes.extend(p for ps in word_phonemes for p in ps)
+
+        return "".join(text_phonemes)
 
     # MaryTTS compatibility layer
     @app.route("/process", methods=["GET"])
