@@ -1,6 +1,6 @@
 SHELL := bash
 
-.PHONY: check clean reformat dist venv
+.PHONY: check clean reformat dist venv docker docker-nobuildx
 
 all: dist
 
@@ -15,3 +15,9 @@ venv:
 
 dist:
 	python3 setup.py sdist
+
+docker:
+	scripts/build-docker.sh
+
+docker-nobuildx:
+	DOCKER_BUILDX='' scripts/build-docker.sh

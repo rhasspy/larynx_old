@@ -9,6 +9,8 @@ fi
 this_dir="$( cd "$( dirname "$0" )" && pwd )"
 src_dir="$(realpath "${this_dir}/..")"
 
+download_dir="${src_dir}/download"
+
 # -----------------------------------------------------------------------------
 
 venv="${src_dir}/.venv"
@@ -32,6 +34,24 @@ pip3 ${PIP_INSTALL} --upgrade wheel setuptools
 
 if [[ -f requirements.txt ]]; then
     pip3 ${PIP_INSTALL} -r requirements.txt
+fi
+
+# Install torch
+CPU_ARCH="$(uname --m)"
+case "${CPU_ARCH}" in
+    aarch64|arm64v8)
+        PLATFORM=aarch64
+        ;;
+
+    *)
+        PLATFORM="${CPU_ARCH}"
+        ;;
+esac
+
+torch_wheel="${download_dir}/torch-1.6.0-cp37-cp37m-linux_${PLATFORM}.whl"
+if [[ -f "${torch_wheel}" ]]; then
+    echo 'Using local torch wheel'
+    pip3 ${PIP_INSTALL} "${torch_wheel}"
 fi
 
 # Install MozillaTTS

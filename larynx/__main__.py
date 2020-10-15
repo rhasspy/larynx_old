@@ -65,6 +65,7 @@ class DatasetItem:
 @dataclass
 class AudioStats:
     """Audio statistics for scale_stats.npy"""
+
     mel_sum: float = 0
     mel_square_sum: float = 0
     linear_sum: float = 0
@@ -631,8 +632,14 @@ def do_serve(args):
 
     synthesizer.load()
 
+    # Fix logging (something in MozillaTTS is changing the level)
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.INFO)
+
     # Run web server
-    app = get_app(synthesizer)
+    app = get_app(synthesizer, cache_dir=args.cache_dir)
     app.run(host=args.host, port=args.port)
 
 
@@ -903,6 +910,9 @@ def get_args() -> argparse.Namespace:
     )
     serve_parser.add_argument(
         "--use-cuda", action="store_true", help="Use GPU (CUDA) for synthesis"
+    )
+    serve_parser.add_argument(
+        "--cache-dir", help="Path to directory to cache WAV files (default: no cache)"
     )
     serve_parser.set_defaults(func=do_serve)
 

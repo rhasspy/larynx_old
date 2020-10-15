@@ -1,0 +1,7 @@
+*
+!requirements.txt
+!scripts/create-venv.sh
+!download/
+!larynx/
+!TTS/
+!voices/
