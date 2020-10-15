@@ -2,6 +2,7 @@
 __pycache__/
 .ipynb_checkpoints/
 /local/
+/download/
 
 *.pth.tar
 scale_stats.npy

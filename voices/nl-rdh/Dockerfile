@@ -2,6 +2,9 @@
 # Dockerfile for Larynx (https://github.com/rhasspy/larynx)
 # Contains Dutch rdh voice (https://github.com/rhasspy/nl_larynx-rdh)
 #
+# Application code and voice are at /app
+# WAV files are cached at /cache
+#
 # Requires Docker buildx: https://docs.docker.com/buildx/working-with-buildx/
 # See scripts/build-docker.sh
 #
@@ -36,4 +39,4 @@ EXPOSE 5002
 ENTRYPOINT ["/app/.venv/bin/python3", "-m", "larynx", "serve", \
             "--model", "/app/voice/tts/nl-rdh_tts-v1.pth.tar", \
             "--vocoder-model", "/app/voice/vocoder/nl-rdh_vocoder-v1.pth.tar", \
-            "--cache-dir", "/tmp/larynx"]
+            "--cache-dir", "/cache"]
