@@ -8,6 +8,8 @@ Will be used by the [Rhasspy project](https://github.com/rhasspy) to train freel
 
 See the [tutorial](docs/tutorial.md) below for step by step instructions.
 
+Once installed, you can run a [web server](#web-server) and test it out at http://localhost:5002
+
 ## Dependencies
 
 * Python 3.7 or higher
@@ -18,7 +20,9 @@ See the [tutorial](docs/tutorial.md) below for step by step instructions.
 ## Voices
 
 * Dutch (`nl`)
-    * [`nl-rdh`](https://github.com/rhasspy/nl_larynx-rdh) ([Samples](https://github.com/rhasspy/nl_larynx-rdh/blob/master/samples))
+    * [nl-rdh](https://github.com/rhasspy/nl_larynx-rdh)
+        * `docker pull rhasspy/larynx:nl-rdh-1`
+        * [Samples](https://github.com/rhasspy/nl_larynx-rdh/blob/master/samples)
 
 ## Differences from MozillaTTS
 
@@ -63,6 +67,20 @@ Larynx assumes your datasets follow a simple convention:
 See `scripts/create-venv.sh`
 
 This includes cloning [rhasspy/TTS](https://github.com/rhasspy/TTS) as a submodule (`dev` branch).
+
+### Docker
+
+A CPU-only Docker image is available at `rhasspy/larynx` with no voices included. See the [voices](#voices) section for Docker images containing specific voices.
+
+```sh
+$ docker run -it -p 5002:5002 \
+    --device /dev/snd:/dev/snd \
+    rhasspy/larynx:<VOICE>-<VERSION>
+```
+
+See [web server](#web-server) section for endpoints.
+
+You can leave off `--device` if you don't plan to play test audio through your speakers.
 
 ## Usage
 
@@ -116,3 +134,27 @@ $ python3 -m larynx synthesis \
 If you have [sox](http://sox.sourceforge.net/) installed, you can leave off `--output-file` and type lines via standard in. They will be played using the `play` command.
 
 You may also specify `--output-dir` to have each sentence (line on stdin or argument) written to a different WAV file.
+
+### Web Server
+
+Run a web server at http://localhost:5002
+
+```sh
+$ python3 -m larynx serve \
+    --model /path/to/model/<timestamp>/best_model.pth.tar \
+    --config /path/to/model/<timestamp>/config.json \
+    --vocoder-model /path/to/model/vocoder/<timestamp>/best_model.pth.tar \
+    --vocoder-config /path/to/model/vocoder/<timestamp>/config.json \
+    --cache-dir /tmp/larynx
+```
+
+Endpoints:
+
+* `/api/tts` - returns WAV audio for text
+    * `GET` with `?text=...`
+    * `POST` with text body
+* `/api/phonemize` - returns phonemes for text
+    * `GET` with `?text=...`
+    * `POST` with text body
+* `/process` - compatibility endpoint to emulate [MaryTTS](http://mary.dfki.de/)
+    * `GET` with `?INPUT_TEXT=...`
