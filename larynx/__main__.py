@@ -31,14 +31,14 @@ _TEST_SENTENCES = {
         "Van Harte Gefeliciteerd met je verjaardag!",
         "Moeder sneed zeven scheve sneden brood.",
     ],
-    "de": [
+    "de-de": [
         "Können Sie bitte langsamer sprechen?",
         "Mir geht es gut, danke!",
         "Haben Sie ein vegetarisches Gericht?",
         "Ich bin allergisch.",
         "Fischers Fritze fischt frische Fische; Frische Fische fischt Fischers Fritze.",
     ],
-    "fr": [
+    "fr-fr": [
         "Pourriez-vous parler un peu moins vite?",
         "Je suis allergique.",
         "Est-ce que vous pourriez l'écrire?",
