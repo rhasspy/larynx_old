@@ -17,7 +17,8 @@
 # * pypi - https://github.com/jayfk/docker-pypi-cache
 # -----------------------------------------------------------------------------
 
-FROM rhasspy/larynx
+ARG DOCKER_REGISTRY
+FROM $DOCKER_REGISTRY/rhasspy/larynx
 
 # Remove proxy
 # IFDEF PROXY

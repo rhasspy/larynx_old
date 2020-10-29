@@ -21,49 +21,77 @@ venv="${src_dir}/.venv"
 
 python_version="$(${PYTHON} --version)"
 
-# Create virtual environment
-echo "Creating virtual environment at ${venv} (${python_version})"
-rm -rf "${venv}"
-"${PYTHON}" -m venv "${venv}"
+: "${stage=0}"
+: "${end_stage=5}"
+
+# Stage 0: create virtual environment
+if [[ "${stage}" -le 0 && "${end_stage}" -ge 0 ]]; then
+    # Create virtual environment
+    echo "Creating virtual environment at ${venv} (${python_version})"
+    rm -rf "${venv}"
+    "${PYTHON}" -m venv "${venv}"
+    source "${venv}/bin/activate"
+
+    # Install Python dependencies
+    echo 'Installing Python dependencies'
+    pip3 ${PIP_INSTALL} --upgrade pip
+    pip3 ${PIP_INSTALL} --upgrade wheel setuptools
+
+    deactivate
+fi
+
 source "${venv}/bin/activate"
 
-# Install Python dependencies
-echo 'Installing Python dependencies'
-pip3 ${PIP_INSTALL} --upgrade pip
-pip3 ${PIP_INSTALL} --upgrade wheel setuptools
-
-if [[ -f requirements.txt ]]; then
-    pip3 ${PIP_INSTALL} -r requirements.txt
+# Stage 1: install requirements
+if [[ "${stage}" -le 1 && "${end_stage}" -ge 1 ]]; then
+    if [[ -f requirements.txt ]]; then
+        echo 'Installing requirements'
+        pip3 ${PIP_INSTALL} -r requirements.txt
+    fi
 fi
 
-# Install torch
-CPU_ARCH="$(uname --m)"
-case "${CPU_ARCH}" in
-    aarch64|arm64v8)
-        PLATFORM=aarch64
-        ;;
+# Stage 2: install torch
+if [[ "${stage}" -le 2 && "${end_stage}" -ge 2 ]]; then
+    # Install torch
+    CPU_ARCH="$(uname --m)"
+    case "${CPU_ARCH}" in
+        aarch64|arm64v8)
+            PLATFORM=aarch64
+            ;;
 
-    *)
-        PLATFORM="${CPU_ARCH}"
-        ;;
-esac
+        *)
+            PLATFORM="${CPU_ARCH}"
+            ;;
+    esac
 
-torch_wheel="${download_dir}/torch-1.6.0-cp37-cp37m-linux_${PLATFORM}.whl"
-if [[ -f "${torch_wheel}" ]]; then
-    echo 'Using local torch wheel'
-    pip3 ${PIP_INSTALL} "${torch_wheel}"
+    torch_wheel="${download_dir}/torch-1.6.0-cp37-cp37m-linux_${PLATFORM}.whl"
+    if [[ -f "${torch_wheel}" ]]; then
+        echo 'Using local torch wheel'
+        pip3 ${PIP_INSTALL} "${torch_wheel}"
+    fi
 fi
 
-# Install MozillaTTS
-echo 'Installing MozillaTTS'
-pip3 ${PIP_INSTALL} -r TTS/requirements.txt
-pushd TTS
-python3 setup.py develop
-popd
+# Stage 3: install MozillaTTS requirements
+if [[ "${stage}" -le 3 && "${end_stage}" -ge 3 ]]; then
+    # Install MozillaTTS
+    echo 'Installing MozillaTTS'
+    pip3 ${PIP_INSTALL} -r TTS/requirements.txt
+fi
 
-# Development dependencies
-if [[ -f requirements_dev.txt ]]; then
-    pip3 ${PIP_INSTALL} -r requirements_dev.txt || echo 'Failed to install development dependencies' >&2
+# Stage 4: do develop setup
+if [[ "${stage}" -le 4 && "${end_stage}" -ge 4 ]]; then
+    echo 'Setting up MozillaTTS development'
+    pushd TTS
+    python3 setup.py develop "${SETUP_DEVELOP}"
+    popd
+fi
+
+# Stage 5: Install dev dependencies (linters)
+if [[ "${stage}" -le 5 && "${end_stage}" -ge 5 ]]; then
+    # Development dependencies
+    if [[ -f requirements_dev.txt ]]; then
+        pip3 ${PIP_INSTALL} -r requirements_dev.txt || echo 'Failed to install development dependencies' >&2
+    fi
 fi
 
 # -----------------------------------------------------------------------------

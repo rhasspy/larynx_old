@@ -12,11 +12,7 @@
 # * pypi - https://github.com/jayfk/docker-pypi-cache
 # -----------------------------------------------------------------------------
 
-FROM ubuntu:eoan as base
-# IFDEF DOCKER_BUILDX
-#! ARG TARGETARCH
-#! ARG TARGETVARIANT
-# ENDIF
+FROM ubuntu:eoan as build-ubuntu
 
 ENV LANG C.UTF-8
 
@@ -26,46 +22,72 @@ ENV LANG C.UTF-8
 
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends \
-        python3 python3-pip python3-venv python3-dev
+        python3 python3-pip python3-venv python3-dev \
+        build-essential
+
+ENV DEBIAN_FRONTEND=noninteractive
 
 # -----------------------------------------------------------------------------
 
-FROM base as build
-# IFDEF DOCKER_BUILDX
-#! ARG TARGETARCH
-#! ARG TARGETVARIANT
-# ENDIF
+FROM build-ubuntu as build-amd64
 
-RUN apt-get install --yes --no-install-recommends \
-        python3-dev build-essential
+FROM build-ubuntu as build-armv7
+
+RUN apt-get install --no-install-recommends --yes \
+        llvm-7-dev libatlas-base-dev libopenblas-dev gfortran \
+        libtiff5-dev libjpeg8-dev libopenjp2-7-dev zlib1g-dev \
+        libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk \
+        libharfbuzz-dev libfribidi-dev libxcb1-dev
+
+ENV LLVM_CONFIG=/usr/bin/llvm-config-7
+
+FROM build-ubuntu as build-arm64
+
+RUN apt-get install --no-install-recommends --yes \
+        llvm-7-dev libatlas-base-dev libopenblas-dev gfortran \
+        libtiff5-dev libjpeg8-dev libopenjp2-7-dev zlib1g-dev \
+        libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev python3-tk \
+        libharfbuzz-dev libfribidi-dev libxcb1-dev
+
+ENV LLVM_CONFIG=/usr/bin/llvm-config-7
+
+# -----------------------------------------------------------------------------
+
+ARG TARGETARCH
+ARG TARGETVARIANT
+FROM build-$TARGETARCH$TARGETVARIANT as build
 
 # IFDEF PYPI
 #! ENV PIP_INDEX_URL=http://${PYPI}/simple/
 #! ENV PIP_TRUSTED_HOST=${PYPI_HOST}
 # ENDIF
 
-COPY download/ /app/download/
-
 COPY requirements.txt /app/
 COPY scripts/create-venv.sh /app/scripts/
 COPY TTS/ /app/TTS/
 
+RUN cd /app && \
+    export stage=0 end_stage=0 && \
+    scripts/create-venv.sh
+
+COPY download/ /app/download/
+
 # Install app
 RUN cd /app && \
     export PIP_INSTALL='install -f /app/download' && \
+    export SETUP_DEVELOP='-f /app/download' && \
     scripts/create-venv.sh
 
 # -----------------------------------------------------------------------------
 
-FROM base as run
-# IFDEF DOCKER_BUILDX
-#! ARG TARGETARCH
-#! ARG TARGETVARIANT
-# ENDIF
+FROM ubuntu:eoan as run
 
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends \
-        python3 libpython3.7 libsndfile1
+        python3 python3-distutils python3-llvmlite libpython3.7 \
+        libsndfile1 libgomp1 libatlas3-base libgfortran4 libopenblas-base \
+        libjpeg8 libopenjp2-7 libtiff5 libxcb1 \
+        libnuma1
 
 
 # Copy virtual environment
