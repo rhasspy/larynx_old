@@ -1,0 +1,145 @@
+{
+"github_branch":"* master",
+    "run_name": "thorsten",
+    "run_description": "multiband melgan mean-var scaling",
+    "audio": {
+        "fft_size": 1024,
+        "win_length": 1024,
+        "hop_length": 256,
+        "frame_length_ms": null,
+        "frame_shift_ms": null,
+        "sample_rate": 22050,
+        "preemphasis": 0.0,
+        "ref_level_db": 0,
+        "power": 1.1,
+        "griffin_lim_iters": 60,
+        "do_trim_silence": false,
+        "trim_db": 60,
+        "num_mels": 80,
+        "mel_fmin": 0.0,
+        "mel_fmax": 8000.0,
+        "spec_gain": 1.0,
+        "signal_norm": true,
+        "min_level_db": -100,
+        "symmetric_norm": true,
+        "max_norm": 1.0,
+        "clip_norm": true,
+        "stats_path": "local/de/thorsten/scale_stats.npy"
+    },
+    "use_stft_loss": true,
+    "use_subband_stft_loss": true,
+    "use_mse_gan_loss": true,
+    "use_hinge_gan_loss": false,
+    "use_feat_match_loss": false,
+    "stft_loss_weight": 0.5,
+    "subband_stft_loss_weight": 0.5,
+    "mse_G_loss_weight": 2.5,
+    "hinge_G_loss_weight": 2.5,
+    "feat_match_loss_weight": 25,
+    "stft_loss_params": {
+        "n_ffts": [
+            1024,
+            2048,
+            512
+        ],
+        "hop_lengths": [
+            120,
+            240,
+            50
+        ],
+        "win_lengths": [
+            600,
+            1200,
+            240
+        ]
+    },
+    "subband_stft_loss_params": {
+        "n_ffts": [
+            384,
+            683,
+            171
+        ],
+        "hop_lengths": [
+            30,
+            60,
+            10
+        ],
+        "win_lengths": [
+            150,
+            300,
+            60
+        ]
+    },
+    "target_loss": "avg_G_loss",
+    "discriminator_model": "melgan_multiscale_discriminator",
+    "discriminator_model_params": {
+        "base_channels": 16,
+        "max_channels": 512,
+        "downsample_factors": [
+            4,
+            4,
+            4
+        ]
+    },
+    "steps_to_start_discriminator": 200000,
+    "generator_model": "multiband_melgan_generator",
+    "generator_model_params": {
+        "upsample_factors": [
+            8,
+            4,
+            2
+        ],
+        "num_res_blocks": 4
+    },
+    "data_path": "/home/hansenm/data/de/thorsten-de",
+    "feature_path": null,
+    "seq_len": 16384,
+    "pad_short": 2000,
+    "conv_pad": 0,
+    "use_noise_augment": false,
+    "use_cache": true,
+    "reinit_layers": [],
+    "batch_size": 25,
+    "run_eval": true,
+    "test_delay_epochs": 10,
+    "test_sentences_file": null,
+    "epochs": 10000,
+    "wd": 0.0,
+    "gen_clip_grad": -1,
+    "disc_clip_grad": -1,
+    "lr_scheduler_gen": "MultiStepLR",
+    "lr_scheduler_gen_params": {
+        "gamma": 0.5,
+        "milestones": [
+            100000,
+            200000,
+            300000,
+            400000,
+            500000,
+            600000
+        ]
+    },
+    "lr_scheduler_disc": "MultiStepLR",
+    "lr_scheduler_disc_params": {
+        "gamma": 0.5,
+        "milestones": [
+            100000,
+            200000,
+            300000,
+            400000,
+            500000,
+            600000
+        ]
+    },
+    "lr_gen": 0.0001,
+    "lr_disc": 0.0001,
+    "print_step": 25,
+    "print_eval": false,
+    "save_step": 25000,
+    "checkpoint": true,
+    "tb_model_param_stats": false,
+    "num_loader_workers": 4,
+    "num_val_loader_workers": 4,
+    "eval_split_size": 10,
+    "output_path": "local/de/thorsten/vocoder/model"
+}
