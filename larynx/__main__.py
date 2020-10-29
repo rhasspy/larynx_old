@@ -205,17 +205,21 @@ def _compute_audio_stats(
 
     def get_stats(item: DatasetItem) -> AudioStats:
         """Compute audio statistics of a WAV"""
-        wav = tts_ap.load_wav(item.wav_path)
-        linear = tts_ap.spectrogram(wav)
-        mel = tts_ap.melspectrogram(wav)
+        try:
+            wav = tts_ap.load_wav(item.wav_path)
+            linear = tts_ap.spectrogram(wav)
+            mel = tts_ap.melspectrogram(wav)
 
-        return AudioStats(
-            N=mel.shape[1],
-            mel_sum=mel.sum(1),
-            linear_sum=linear.sum(1),
-            mel_square_sum=(mel ** 2).sum(axis=1),
-            linear_square_sum=(linear ** 2).sum(axis=1),
-        )
+            return AudioStats(
+                N=mel.shape[1],
+                mel_sum=mel.sum(1),
+                linear_sum=linear.sum(1),
+                mel_square_sum=(mel ** 2).sum(axis=1),
+                linear_square_sum=(linear ** 2).sum(axis=1),
+            )
+        except Exception as e:
+            _LOGGER.exception(str(item))
+            raise e
 
     # Compute in parallel and then aggregate
     _LOGGER.debug("Computing audio stats...")
@@ -280,9 +284,7 @@ def do_init(args):
             if line:
                 item_id, item_text = line.split("|", maxsplit=1)
                 dataset_items[item_id] = DatasetItem(
-                    id=item_id,
-                    text=item_text,
-                    wav_path=(dataset_dir / item_id).with_suffix(".wav"),
+                    id=item_id, text=item_text, wav_path=dataset_dir / f"{item_id}.wav"
                 )
 
     assert dataset_items, "No items in dataset"
@@ -338,9 +340,14 @@ def do_init(args):
                 sequence = np.load(phoneme_path, allow_pickle=True)
                 actual_phonemes = [phonemes_list[index] for index in sequence]
 
-                item = dataset_items[item_id]
-                actual_phonemes_str = " ".join(actual_phonemes)
-                phonemes_writer.writerow((item_id, item.text, actual_phonemes_str))
+                item = dataset_items.get(item_id)
+                if item:
+                    actual_phonemes_str = " ".join(actual_phonemes)
+                    phonemes_writer.writerow((item_id, item.text, actual_phonemes_str))
+                else:
+                    _LOGGER.warning(
+                        "Item %s is in phoneme cache but not in dataset", item_id
+                    )
 
     # ----------
     # TTS Config
@@ -490,6 +497,42 @@ def do_init(args):
 # -----------------------------------------------------------------------------
 
 
+def do_compute_stats(args):
+    """Compute audio statistics for dataset(s)"""
+    import json5
+
+    model_dir = Path(args.model)
+    dataset_dir = Path(args.dataset)
+
+    tts_config_path = model_dir / "config.json"
+    with open(tts_config_path, "r") as tts_config_file:
+        tts_config = json5.load(tts_config_file)
+
+    # Load dataset
+    dataset_items: typing.Dict[str, DatasetItem] = {}
+
+    # Load metadata
+    metadata_path = dataset_dir / "metadata.csv"
+    _LOGGER.debug("Loading metadata file from %s", metadata_path)
+    _LOGGER.debug("Expecting WAV files in %s", dataset_dir)
+
+    with open(metadata_path, "r") as metadata_file:
+        for line in metadata_file:
+            line = line.strip()
+            if line:
+                item_id, item_text = line.split("|", maxsplit=1)
+                dataset_items[item_id] = DatasetItem(
+                    id=item_id, text=item_text, wav_path=dataset_dir / f"{item_id}.wav"
+                )
+
+    # Compute stats
+    tts_stats_path = str(model_dir / "scale_stats.npy")
+    _compute_audio_stats(dataset_items, tts_config, tts_stats_path)
+
+
+# -----------------------------------------------------------------------------
+
+
 def do_synthesize(args):
     """Synthesize WAV data from text"""
     from .synthesize import Synthesizer
@@ -545,74 +588,73 @@ def do_synthesize(args):
         # Process sentences line by line
         for text in texts:
             text = text.strip()
-            if text:
-                text_is_phonemes = args.phonemes
+            if not text:
+                continue
 
-                if text_is_phonemes:
-                    # Interpret text input as phonemes with a separator
-                    text = text.split(args.phoneme_separator)
-                elif accent_lang and phoneme_map:
-                    # Interpret text in the accent language, map to phonemes in
-                    # the voice language.
-                    text_phonemes = []
-                    for sentence in accent_lang.tokenizer.tokenize(text):
-                        # Choose first pronunciation for each word
-                        word_phonemes = [
-                            wp[0]
-                            for wp in accent_lang.phonemizer.phonemize(
-                                sentence.clean_words,
-                                word_indexes=True,
-                                word_breaks=True,
-                            )
-                            if wp
-                        ]
+            original_text = text
+            text_is_phonemes = args.phonemes
 
-                        # Do phoneme mapping
-                        for wp in word_phonemes:
-                            for p in wp:
-                                p2 = phoneme_map.get(p)
-                                if p2:
-                                    text_phonemes.extend(p2)
-                                else:
-                                    text_phonemes.append(p)
+            if text_is_phonemes:
+                # Interpret text input as phonemes with a separator
+                text = text.split(args.phoneme_separator)
+            elif accent_lang and phoneme_map:
+                # Interpret text in the accent language, map to phonemes in
+                # the voice language.
+                text_phonemes = []
+                for sentence in accent_lang.tokenizer.tokenize(text):
+                    # Choose first pronunciation for each word
+                    word_phonemes = [
+                        wp[0]
+                        for wp in accent_lang.phonemizer.phonemize(
+                            sentence.clean_words, word_indexes=True, word_breaks=True
+                        )
+                        if wp
+                    ]
 
-                    _LOGGER.debug(text_phonemes)
-                    text = text_phonemes
-                    text_is_phonemes = True
+                    # Do phoneme mapping
+                    for wp in word_phonemes:
+                        for p in wp:
+                            p2 = phoneme_map.get(p)
+                            if p2:
+                                text_phonemes.extend(p2)
+                            else:
+                                text_phonemes.append(p)
 
-                # -------------------------------------------------------------
+                _LOGGER.debug(text_phonemes)
+                text = text_phonemes
+                text_is_phonemes = True
 
-                # Do synthesis
-                wav_bytes = synthesizer.synthesize(
-                    text, text_is_phonemes=text_is_phonemes
+            # -------------------------------------------------------------
+
+            # Do synthesis
+            wav_bytes = synthesizer.synthesize(text, text_is_phonemes=text_is_phonemes)
+
+            if args.output_file:
+                # Write to single file.
+                # Will overwrite if multiple sentences.
+                args.output_file.parent.mkdir(parents=True, exist_ok=True)
+                args.output_file.write_bytes(wav_bytes)
+                _LOGGER.debug("Wrote %s", args.output_file)
+            elif args.output_dir:
+                # Write to directory.
+                # Name WAV file after text input.
+                file_name = original_text.replace(" ", "_")
+                file_name = (
+                    file_name.translate(
+                        str.maketrans("", "", string.punctuation.replace("_", ""))
+                    )
+                    + ".wav"
                 )
 
-                if args.output_file:
-                    # Write to single file.
-                    # Will overwrite if multiple sentences.
-                    args.output_file.parent.mkdir(parents=True, exist_ok=True)
-                    args.output_file.write_bytes(wav_bytes)
-                    _LOGGER.debug("Wrote %s", args.output_file)
-                elif args.output_dir:
-                    # Write to directory.
-                    # Name WAV file after text input.
-                    file_name = text.replace(" ", "_")
-                    file_name = (
-                        file_name.translate(
-                            str.maketrans("", "", string.punctuation.replace("_", ""))
-                        )
-                        + ".wav"
-                    )
-
-                    args.output_dir.mkdir(parents=True, exist_ok=True)
-                    file_path = Path(args.output_dir / file_name)
-                    file_path.write_bytes(wav_bytes)
-                    _LOGGER.debug("Wrote %s", file_path)
-                else:
-                    # Play using sox
-                    subprocess.run(
-                        ["play", "-q", "-t", "wav", "-"], input=wav_bytes, check=True
-                    )
+                args.output_dir.mkdir(parents=True, exist_ok=True)
+                file_path = Path(args.output_dir / file_name)
+                file_path.write_bytes(wav_bytes)
+                _LOGGER.debug("Wrote %s", file_path)
+            else:
+                # Play using sox
+                subprocess.run(
+                    ["play", "-q", "-t", "wav", "-"], input=wav_bytes, check=True
+                )
     except KeyboardInterrupt:
         # CTRL + C
         pass
@@ -830,6 +872,18 @@ def get_args() -> argparse.Namespace:
     )
     init_parser.set_defaults(func=do_init)
 
+    # -------------
+    # compute-stats
+    # -------------
+    compute_stats_parser = sub_parsers.add_parser(
+        "compute-stats", help="Compute audio statistics for dataset(s)"
+    )
+    compute_stats_parser.add_argument("model", help="Path to model base directory")
+    compute_stats_parser.add_argument(
+        "--dataset", required=True, help="Path to dataset directory"
+    )
+    compute_stats_parser.set_defaults(func=do_compute_stats)
+
     # ---------
     # phonemize
     # ---------
@@ -936,6 +990,7 @@ def get_args() -> argparse.Namespace:
     # Shared arguments
     for sub_parser in [
         init_parser,
+        compute_stats_parser,
         synthesize_parser,
         serve_parser,
         phonemize_parser,

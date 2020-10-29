@@ -7,10 +7,10 @@ import typing
 import uuid
 from pathlib import Path
 
-import gruut
 from flask import Flask, Response, render_template, request, send_from_directory
 from flask_cors import CORS
 
+import gruut
 from larynx.synthesize import Synthesizer
 
 _DIR = Path(__file__).parent
