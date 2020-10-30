@@ -257,6 +257,7 @@ def do_init(args):
     """Initialize a model directory for training"""
     import json5
     import numpy as np
+    import scipy.io.wavfile
     from gruut_ipa import IPA
 
     dataset_items: typing.Dict[str, DatasetItem] = {}
@@ -355,10 +356,7 @@ def do_init(args):
 
     # Get sample rate from first WAV file
     first_item = next(iter(dataset_items.values()))
-    with open(first_item.wav_path, "rb") as first_wav_file:
-        with wave.open(first_wav_file, "rb") as first_wav:
-            sample_rate = first_wav.getframerate()
-
+    sample_rate, _ = scipy.io.wavfile.read(first_item.wav_path)
     _LOGGER.debug("Assuming sample rate is %s Hz", sample_rate)
 
     # Path to MozillaTTS submodule
