@@ -45,6 +45,13 @@ _TEST_SENTENCES = {
         "Avez-vous des plats végétariens?",
         "Si mon tonton tond ton tonton, ton tonton sera tondu.",
     ],
+    "es-es": [
+        "Una cerveza, por favor.",
+        "¿Puedes hablar más despacio?",
+        "¡Siga recto! Despúes, gire a la izquierda!",
+        "¿Cómo te llamas?",
+        "El bebé bebe bebidas con burbujas.",
+    ],
 }
 
 # -----------------------------------------------------------------------------
