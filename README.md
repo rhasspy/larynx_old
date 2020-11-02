@@ -4,7 +4,8 @@
 
 A [fork](https://github.com/rhasspy/TTS) of [MozillaTTS](https://github.com/mozilla/TTS) that uses [gruut](https://github.com/rhasspy/gruut) for cleaning and phonemizing text.
 
-Will be used by the [Rhasspy project](https://github.com/rhasspy) to train freely available voices from public datasets.
+Used by the [Rhasspy project](https://github.com/rhasspy) to train freely available voices from public datasets.
+See [pre-trained models](#pre-trained-models).
 
 See the [tutorial](docs/tutorial.md) below for step by step instructions.
 
@@ -158,3 +159,18 @@ Endpoints:
     * `POST` with text body
 * `/process` - compatibility endpoint to emulate [MaryTTS](http://mary.dfki.de/)
     * `GET` with `?INPUT_TEXT=...`
+    
+---
+
+## Pre-Trained Models
+
+Models and Docker images are available here:
+
+* Dutch
+    * [nl_larynx-rdh](https://github.com/rhasspy/nl_larynx-rdh)
+* German
+    * [de_larynx-thorsten](https://github.com/rhasspy/de_larynx-thorsten)
+* French
+    * [fr_larynx-siwis](https://github.com/rhasspy/fr_larynx-siwis)
+
+If you use Home Assistant, these are also available as [Hass.io add-ons](https://github.com/rhasspy/hassio-addons/)
