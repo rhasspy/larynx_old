@@ -445,6 +445,9 @@ def do_init(args):
         }
     ]
 
+    # Gruut will do the cleaning
+    tts_config["text_cleaner"] = "no_cleaners"
+
     # Test sentences
     test_sentences = _TEST_SENTENCES.get(language)
     if test_sentences:
