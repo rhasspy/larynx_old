@@ -172,5 +172,9 @@ Models and Docker images are available here:
     * [de_larynx-thorsten](https://github.com/rhasspy/de_larynx-thorsten)
 * French
     * [fr_larynx-siwis](https://github.com/rhasspy/fr_larynx-siwis)
+* Spanish
+    * [es_larynx-css10](https://github.com/rhasspy/es_larynx-css10)
+* Russian
+    * [ru_larynx-nikolaev](https://github.com/rhasspy/ru_larynx-nikolaev)
 
 If you use Home Assistant, these are also available as [Hass.io add-ons](https://github.com/rhasspy/hassio-addons/)
