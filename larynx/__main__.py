@@ -59,6 +59,13 @@ _TEST_SENTENCES = {
         "Одного языка никогда недостаточно",
         "Моё судно на воздушной подушке полно угрей",
     ],
+    "it-it": [
+        "Da dove vieni?",
+        "Parli un'altra lingua oltre l'italiano?",
+        "Auguri di pronta guarigione!",
+        "Una sola lingua non è mai abbastanza.",
+        "Il mio aeroscafo è pieno di anguille!",
+    ],
 }
 
 # -----------------------------------------------------------------------------
