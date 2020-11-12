@@ -318,14 +318,17 @@ def do_init(args):
 
     pad = "_"
 
+    stresses = []
+    if gruut_lang.keep_stress:
+        stresses = [IPA.STRESS_PRIMARY, IPA.STRESS_SECONDARY]
+
     # Always include pad and break symbols.
-    # In the future, intontation should also be added.
-    phonemes_list = [
-        pad,
-        IPA.BREAK_MINOR.value,
-        IPA.BREAK_MAJOR.value,
-        IPA.BREAK_WORD.value,
-    ] + sorted([p.text for p in gruut_lang.phonemes])
+    # In the future, intontation/tones should also be added.
+    phonemes_list = (
+        [pad, IPA.BREAK_MINOR.value, IPA.BREAK_MAJOR.value, IPA.BREAK_WORD.value]
+        + stresses
+        + sorted([p.text for p in gruut_lang.phonemes])
+    )
 
     # Write phonemes to a text file
     phonemes_text_path = model_dir / "phonemes.txt"
