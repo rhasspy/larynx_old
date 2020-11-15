@@ -59,7 +59,7 @@
     "checkpoint": true,
     "tb_model_param_stats": false,
     "apex_amp_level": null,
-    "text_cleaner": "phoneme_cleaners",
+    "text_cleaner": "no_cleaners",
     "enable_eos_bos_chars": false,
     "num_loader_workers": 4,
     "num_val_loader_workers": 4,
