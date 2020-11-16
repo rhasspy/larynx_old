@@ -66,6 +66,13 @@ _TEST_SENTENCES = {
         "Una sola lingua non è mai abbastanza.",
         "Il mio aeroscafo è pieno di anguille!",
     ],
+    "sv-se": [
+        "Det var länge sedan vi sågs sist!",
+        "Ha en trevlig dag!",
+        "Den här damen betalar för allting",
+        "Ett språk är aldrig nog",
+        "Min svävare är full med ål",
+    ],
 }
 
 # -----------------------------------------------------------------------------
@@ -152,9 +159,7 @@ def _compute_phonemes(
 
     if missing_words:
         _LOGGER.debug("Guessing pronunciations for %s word(s)", len(missing_words))
-        word_prons = phonetisaurus.predict(
-            missing_words, gruut_lang.phonemizer.g2p_model_path, nbest=1
-        )
+        word_prons = gruut_lang.phonemizer.predict(missing_words, nbest=1)
 
         guessed_words_path = model_dir / "guessed_words.txt"
         with open(guessed_words_path, "w") as guessed_words_file:
