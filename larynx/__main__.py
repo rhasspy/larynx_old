@@ -326,13 +326,13 @@ def do_init(args):
     # Acute/grave accents (' and ²)
     accents = []
     if gruut_lang.keep_accents:
-        accents = [IPA.ACCENT_ACUTE, IPA.ACCENT_GRAVE]
+        accents = [IPA.ACCENT_ACUTE.value, IPA.ACCENT_GRAVE.value]
 
     # Primary/secondary stress (ˈ and ˌ)
     # NOTE: Accute accent (0x0027) != primary stress (0x02C8)
     stresses = []
     if gruut_lang.keep_stress:
-        stresses = [IPA.STRESS_PRIMARY, IPA.STRESS_SECONDARY]
+        stresses = [IPA.STRESS_PRIMARY.value, IPA.STRESS_SECONDARY.value]
 
     # Always include pad and break symbols.
     # In the future, intontation/tones should also be added.
