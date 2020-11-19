@@ -1,4 +1,4 @@
 flask==1.1.2
 flask-cors==3.0.9
-gruut~=0.5.0
+gruut~=0.4.0
 json5==0.9.5

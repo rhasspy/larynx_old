@@ -15,6 +15,19 @@ download_dir="${src_dir}/download"
 
 venv="${src_dir}/.venv"
 
+function maybe_download {
+    if [[ ! -s "$2" ]]; then
+        mkdir -p "$(dirname "$2")"
+        curl -sSfL -o "$2" "$1" || { echo "Can't download $1"; exit 1; }
+        echo "$1 => $2"
+    fi
+}
+
+gruut_file="${download}/gruut-0.4.0.tar.gz"
+gruut_url='https://github.com/rhasspy/gruut/archive/v0.4.0.tar.gz'
+
+maybe_download "${gruut_url}" "${gruut_file}"
+
 # -----------------------------------------------------------------------------
 
 : "${PYTHON=python3}"
@@ -44,6 +57,11 @@ source "${venv}/bin/activate"
 
 # Stage 1: install requirements
 if [[ "${stage}" -le 1 && "${end_stage}" -ge 1 ]]; then
+    if [[ -f "${gruut_file}" ]]; then
+        echo 'Installing gruut'
+        pip3 ${PIP_INSTALL} "${gruut_file}"
+    fi
+
     if [[ -f requirements.txt ]]; then
         echo 'Installing requirements'
         pip3 ${PIP_INSTALL} -r requirements.txt
