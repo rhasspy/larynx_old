@@ -487,6 +487,13 @@ def do_init(args):
     # Gruut will do the cleaning
     tts_config["text_cleaner"] = "no_cleaners"
 
+    # Delay testing a little and do it less frequently
+    tts_config["test_delay_epochs"] = 2000
+    tts_config["test_n_epochs"] = 1000
+
+    # Disable evaluation since it takes longer than training
+    tts_config["run_eval"] = False
+
     # Test sentences
     test_sentences = _TEST_SENTENCES.get(language)
     if test_sentences:
