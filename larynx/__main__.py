@@ -66,6 +66,20 @@ _TEST_SENTENCES = {
         "Una sola lingua non è mai abbastanza.",
         "Il mio aeroscafo è pieno di anguille!",
     ],
+    "sv-se": [
+        "Det var länge sedan vi sågs sist!",
+        "Ha en trevlig dag!",
+        "Den här damen betalar för allting.",
+        "Ett språk är aldrig nog.",
+        "Min svävare är full med ål.",
+    ],
+    "pt": [
+        "Como se chama?",
+        "Você vem sempre aqui?",
+        "Quer dançar comigo?",
+        "Uma só língua nunca basta.",
+        "﻿O meu hovercraft está cheio de enguias.",
+    ],
 }
 
 # -----------------------------------------------------------------------------
@@ -152,9 +166,7 @@ def _compute_phonemes(
 
     if missing_words:
         _LOGGER.debug("Guessing pronunciations for %s word(s)", len(missing_words))
-        word_prons = phonetisaurus.predict(
-            missing_words, gruut_lang.phonemizer.g2p_model_path, nbest=1
-        )
+        word_prons = gruut_lang.phonemizer.predict(missing_words, nbest=1)
 
         guessed_words_path = model_dir / "guessed_words.txt"
         with open(guessed_words_path, "w") as guessed_words_file:
@@ -178,7 +190,7 @@ def _compute_phonemes(
         word_phonemes = [
             wp[0]
             for wp in gruut_lang.phonemizer.phonemize(
-                clean_words, word_indexes=True, word_breaks=True
+                clean_words, word_indexes=True, word_breaks=True, separate_tones=None
             )
             if wp
         ]
@@ -305,8 +317,13 @@ def do_init(args):
             line = line.strip()
             if line:
                 item_id, item_text = line.split("|", maxsplit=1)
+                wav_path = dataset_dir / f"{item_id}.wav"
+                if not wav_path.is_file():
+                    _LOGGER.warning("Missing %s", wav_path)
+                    continue
+
                 dataset_items[item_id] = DatasetItem(
-                    id=item_id, text=item_text, wav_path=dataset_dir / f"{item_id}.wav"
+                    id=item_id, text=item_text, wav_path=wav_path
                 )
 
     assert dataset_items, "No items in dataset"
@@ -318,15 +335,27 @@ def do_init(args):
 
     pad = "_"
 
+    # Acute/grave accents (' and ²)
+    accents = []
+    if gruut_lang.keep_accents:
+        accents = [IPA.ACCENT_ACUTE.value, IPA.ACCENT_GRAVE.value]
+
+    # Primary/secondary stress (ˈ and ˌ)
+    # NOTE: Accute accent (0x0027) != primary stress (0x02C8)
     stresses = []
     if gruut_lang.keep_stress:
-        stresses = [IPA.STRESS_PRIMARY, IPA.STRESS_SECONDARY]
+        stresses = [IPA.STRESS_PRIMARY.value, IPA.STRESS_SECONDARY.value]
+
+    # Tones
+    tones = gruut_lang.tones
 
     # Always include pad and break symbols.
     # In the future, intontation/tones should also be added.
     phonemes_list = (
         [pad, IPA.BREAK_MINOR.value, IPA.BREAK_MAJOR.value, IPA.BREAK_WORD.value]
+        + accents
         + stresses
+        + tones
         + sorted([p.text for p in gruut_lang.phonemes])
     )
 
@@ -457,6 +486,13 @@ def do_init(args):
 
     # Gruut will do the cleaning
     tts_config["text_cleaner"] = "no_cleaners"
+
+    # Delay testing a little and do it less frequently
+    tts_config["test_delay_epochs"] = 2000
+    tts_config["test_n_epochs"] = 1000
+
+    # Disable evaluation since it takes longer than training
+    tts_config["run_eval"] = False
 
     # Test sentences
     test_sentences = _TEST_SENTENCES.get(language)
@@ -631,7 +667,10 @@ def do_synthesize(args):
                     word_phonemes = [
                         wp[0]
                         for wp in accent_lang.phonemizer.phonemize(
-                            sentence.clean_words, word_indexes=True, word_breaks=True
+                            sentence.clean_words,
+                            word_indexes=True,
+                            word_breaks=True,
+                            separate_tones=None,
                         )
                         if wp
                     ]
@@ -831,7 +870,10 @@ def do_verify_phonemes(args):
                 word_phonemes = [
                     wp[0]
                     for wp in gruut_lang.phonemizer.phonemize(
-                        sentence.clean_words, word_indexes=True, word_breaks=True
+                        sentence.clean_words,
+                        word_indexes=True,
+                        word_breaks=True,
+                        separate_tones=None,
                     )
                     if wp
                 ]
