@@ -44,6 +44,11 @@ source "${venv}/bin/activate"
 
 # Stage 1: install requirements
 if [[ "${stage}" -le 1 && "${end_stage}" -ge 1 ]]; then
+    # Preinstallation
+    if [[ -n "${PIP_PREINSTALL_PACKAGES}" ]]; then
+        pip3 ${PIP_INSTALL} ${PIP_PREINSTALL_PACKAGES}
+    fi
+
     if [[ -f requirements.txt ]]; then
         echo 'Installing requirements'
         pip3 ${PIP_INSTALL} -r requirements.txt

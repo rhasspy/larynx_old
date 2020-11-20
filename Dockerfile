@@ -76,6 +76,7 @@ COPY download/ /app/download/
 RUN cd /app && \
     export PIP_INSTALL='install -f /app/download' && \
     export SETUP_DEVELOP='-f /app/download' && \
+    export PIP_PREINSTALL_PACKAGES='numpy==1.19.0 scipy==1.5.1' && \
     scripts/create-venv.sh
 
 # -----------------------------------------------------------------------------
