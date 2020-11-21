@@ -128,6 +128,7 @@ def _compute_phonemes(
     phonemes: typing.Dict[str, int],
     model_dir: Path,
     phoneme_cache_dir: Path,
+    word_breaks: bool = True,
 ):
     """Tokenize and phonemize transcripts"""
     import numpy as np
@@ -190,7 +191,10 @@ def _compute_phonemes(
         word_phonemes = [
             wp[0]
             for wp in gruut_lang.phonemizer.phonemize(
-                clean_words, word_indexes=True, word_breaks=True, separate_tones=None
+                clean_words,
+                word_indexes=True,
+                word_breaks=word_breaks,
+                separate_tones=None,
             )
             if wp
         ]
@@ -378,7 +382,12 @@ def do_init(args):
 
     if not args.skip_phonemes:
         _compute_phonemes(
-            dataset_items, gruut_lang, phonemes, model_dir, phoneme_cache_dir
+            dataset_items,
+            gruut_lang,
+            phonemes,
+            model_dir,
+            phoneme_cache_dir,
+            word_breaks=args.word_breaks,
         )
 
     # Write phonemized sentences
@@ -473,6 +482,7 @@ def do_init(args):
         "punctuations": "",
         "eos_bos_phonemes": False,
         "sort_phonemes": False,
+        "word_breaks": not args.no_word_breaks,
     }
 
     tts_config["datasets"] = [
@@ -631,6 +641,9 @@ def do_synthesize(args):
     else:
         logging.getLogger().setLevel(logging.INFO)
 
+    # Include or exclude word break symbol (#)
+    word_breaks = synthesize.config.get("characters", {}).get("word_breaks", True)
+
     # Accents
     accent_lang = None
     phoneme_map: typing.Dict[str, typing.List[str]] = {}
@@ -669,7 +682,7 @@ def do_synthesize(args):
                         for wp in accent_lang.phonemizer.phonemize(
                             sentence.clean_words,
                             word_indexes=True,
-                            word_breaks=True,
+                            word_breaks=word_breaks,
                             separate_tones=None,
                         )
                         if wp
@@ -831,6 +844,9 @@ def do_verify_phonemes(args):
     # Add pad
     phoneme_to_id["_"] = 0
 
+    # Include or exclude word break symbol (#)
+    word_breaks = c.get("characters", {}).get("word_breaks", True)
+
     # Load lexicon and missing words
     lexicon = gruut_lang.phonemizer.lexicon
 
@@ -872,7 +888,7 @@ def do_verify_phonemes(args):
                     for wp in gruut_lang.phonemizer.phonemize(
                         sentence.clean_words,
                         word_indexes=True,
-                        word_breaks=True,
+                        word_breaks=word_breaks,
                         separate_tones=None,
                     )
                     if wp
@@ -936,6 +952,11 @@ def get_args() -> argparse.Namespace:
         "--vocoder-batch-size",
         type=int,
         help="Batch size for vocoder (default: config value)",
+    )
+    init_parser.add_argument(
+        "--no-word-breaks",
+        action="store_true",
+        help="Disable inclusion of word break symbol (#)",
     )
     init_parser.set_defaults(func=do_init)
 
