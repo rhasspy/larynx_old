@@ -353,10 +353,16 @@ def do_init(args):
     # Tones
     tones = gruut_lang.tones
 
+    # Word break
+    word_break = [IPA.BREAK_WORD.value]
+    if args.no_word_breaks:
+        word_break = []
+
     # Always include pad and break symbols.
     # In the future, intontation/tones should also be added.
     phonemes_list = (
-        [pad, IPA.BREAK_MINOR.value, IPA.BREAK_MAJOR.value, IPA.BREAK_WORD.value]
+        [pad, IPA.BREAK_MINOR.value, IPA.BREAK_MAJOR.value]
+        + word_break
         + accents
         + stresses
         + tones
@@ -387,7 +393,7 @@ def do_init(args):
             phonemes,
             model_dir,
             phoneme_cache_dir,
-            word_breaks=args.word_breaks,
+            word_breaks=not args.no_word_breaks,
         )
 
     # Write phonemized sentences
