@@ -648,7 +648,7 @@ def do_synthesize(args):
         logging.getLogger().setLevel(logging.INFO)
 
     # Include or exclude word break symbol (#)
-    word_breaks = synthesize.config.get("characters", {}).get("word_breaks", True)
+    word_breaks = synthesizer.config.get("characters", {}).get("word_breaks", True)
 
     # Accents
     accent_lang = None
