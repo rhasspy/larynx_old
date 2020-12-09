@@ -163,7 +163,13 @@ def _compute_phonemes(
     for item_id, item_clean_words in id_clean_words:
         for word in item_clean_words:
             if (word not in lexicon) and gruut_lang.tokenizer.is_word(word):
+                # Try word without non-word characters
+                filtered_word = gruut_lang.phonemizer.remove_nonword_chars(word)
+                if filtered_word in lexicon:
+                    continue
+
                 missing_words.add(word)
+                _LOGGER.debug("Missing word '%s' from: %s", word, item_clean_words)
 
     if missing_words:
         _LOGGER.debug("Guessing pronunciations for %s word(s)", len(missing_words))
@@ -457,11 +463,8 @@ def do_init(args):
     tts_config["phoneme_language"] = language
     tts_config["phoneme_backend"] = "gruut"
 
-    # Align faster
-    tts_config["use_forward_attn"] = True
-
-    # Disable DDC
-    tts_config["double_decoder_consistency"] = False
+    # Disable mixed precision
+    tts_config["mixed_precision"] = False
 
     # Disable global style tokens
     tts_config["use_gst"] = False
@@ -503,12 +506,9 @@ def do_init(args):
     # Gruut will do the cleaning
     tts_config["text_cleaner"] = "no_cleaners"
 
-    # Delay testing a little and do it less frequently
-    tts_config["test_delay_epochs"] = 2000
-    tts_config["test_n_epochs"] = 1000
-
-    # Disable evaluation since it takes longer than training
-    tts_config["run_eval"] = False
+    # Delay testing a little later and do it less frequently
+    tts_config["test_delay_epochs"] = 1000
+    tts_config["test_n_epochs"] = 100
 
     # Test sentences
     test_sentences = _TEST_SENTENCES.get(language)
