@@ -8,6 +8,7 @@ import torch
 
 from TTS.tts.utils.generic_utils import setup_model
 from TTS.tts.utils.synthesis import synthesis
+from TTS.tts.utils.text import load_gruut_language
 from TTS.tts.utils.text.symbols import make_symbols
 from TTS.utils.audio import AudioProcessor
 from TTS.utils.io import load_config
@@ -200,6 +201,10 @@ class Synthesizer:
                 gst_style = self.gst_style
 
         self.gst_style = gst_style
+
+        # Pre-load language
+        if C.get("phoneme_backend") == "gruut":
+            load_gruut_language(C["phoneme_language"])
 
     def synthesize(self, text: str, text_is_phonemes: bool = False) -> bytes:
         """Synthesize WAV bytes from text"""
