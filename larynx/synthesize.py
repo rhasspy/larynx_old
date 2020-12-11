@@ -27,6 +27,8 @@ def tts(
     speaker_embedding=None,
     gst_style=None,
     text_is_phonemes=False,
+    ap_vocoder=None,
+    scale_factors=None,
 ):
     t_1 = time.time()
     waveform, _, _, mel_postnet_spec, _, _ = synthesis(
@@ -49,10 +51,20 @@ def tts(
     if CONFIG.model == "Tacotron" and not use_gl:
         mel_postnet_spec = ap.out_linear_to_mel(mel_postnet_spec.T).T
 
-    if not use_gl:
-        waveform = vocoder_model.inference(
-            torch.FloatTensor(mel_postnet_spec.T).unsqueeze(0)
-        )
+    if not use_gl and ap_vocoder:
+        mel_postnet_spec = ap._denormalize(mel_postnet_spec.T).T
+        vocoder_input = ap_vocoder._normalize(mel_postnet_spec.T)
+
+        if scale_factors:
+            vocoder_input = torch.nn.functional.interpolate(
+                torch.tensor(vocoder_input).unsqueeze(0).unsqueeze(0),
+                scale_factor=scale_factors,
+                mode="bilinear",
+            ).squeeze(0)
+        else:
+            vocoder_input = torch.tensor(vocoder_input).unsqueeze(0)
+
+        waveform = vocoder_model.inference(vocoder_input)
 
     if use_cuda and not use_gl:
         waveform = waveform.cpu()
@@ -99,6 +111,7 @@ class Synthesizer:
         C = load_config(self.config_path)
         self.config = C
 
+        # Resolve scale_stats path
         stats_path = C.audio.get("stats_path")
         if stats_path and not os.path.isfile(stats_path):
             # Look for stats next to config
@@ -108,8 +121,31 @@ class Synthesizer:
             if os.path.isfile(model_stats_path):
                 # Patch config
                 C.audio["stats_path"] = model_stats_path
+            else:
+                _LOGGER.warning("No scale stats found at %s", C.audio["stats_path"])
+                C.audio["stats_path"] = ""
 
         C.forward_attn_mask = True
+
+        if "gst" not in C.keys():
+            # Patch config
+            gst = {
+                "gst_use_speaker_embedding": False,
+                "gst_style_input": None,
+                "gst_embedding_dim": 512,
+                "gst_num_heads": 4,
+                "gst_style_tokens": 10,
+            }
+
+            C["gst"] = gst
+            setattr(C, "gst", gst)
+
+        if "use_external_speaker_embedding_file" not in C.keys():
+            C["use_external_speaker_embedding_file"] = False
+            setattr(C, "use_external_speaker_embedding_file", False)
+
+        if "gst_use_speaker_embedding" not in C.gst:
+            C.gst["gst_use_speaker_embedding"] = False
 
         # load the audio processor
         ap = AudioProcessor(**C.audio)
@@ -159,17 +195,45 @@ class Synthesizer:
         # load vocoder model
         if self.vocoder_path:
             VC = load_config(self.vocoder_config_path)
+            # Resolve scale_stats path
+            stats_path = VC.audio.get("stats_path")
+            if stats_path and not os.path.isfile(stats_path):
+                # Look for stats next to config
+                vocoder_stats_path = os.path.join(
+                    os.path.dirname(self.vocoder_config_path), "scale_stats.npy"
+                )
+                if os.path.isfile(vocoder_stats_path):
+                    # Patch config
+                    VC.audio["stats_path"] = vocoder_stats_path
+                else:
+                    # Try next to TTS config
+                    vocoder_stats_path = os.path.join(
+                        os.path.dirname(self.config_path), "scale_stats.npy"
+                    )
+                    if os.path.isfile(vocoder_stats_path):
+                        # Patch config
+                        VC.audio["stats_path"] = vocoder_stats_path
+                    else:
+                        _LOGGER.warning(
+                            "No vocoder scale stats found at %s", VC.audio["stats_path"]
+                        )
+                        VC.audio["stats_path"] = ""
+
+            self.ap_vocoder = AudioProcessor(**VC.audio)
+
             vocoder_model = setup_generator(VC)
             vocoder_model.load_state_dict(
                 torch.load(self.vocoder_path, map_location="cpu")["model"]
             )
             vocoder_model.remove_weight_norm()
+            vocoder_model.inference_padding = 0
             if self.use_cuda:
                 vocoder_model.cuda()
             vocoder_model.eval()
         else:
             vocoder_model = None
             VC = None
+            self.ap_vocoder = None
 
         self.vocoder_model = vocoder_model
         self.vocoder_config = VC
@@ -206,6 +270,14 @@ class Synthesizer:
         if C.get("phoneme_backend") == "gruut":
             load_gruut_language(C["phoneme_language"])
 
+        # Compute scale factors in case TTS/vocoder sample rates differ
+        # See: https://github.com/mozilla/TTS/issues/520
+        self.scale_factors = None
+
+        if self.ap_vocoder and (self.ap.sample_rate != self.ap_vocoder.sample_rate):
+            self.scale_factors = (1, self.ap_vocoder.sample_rate / self.ap.sample_rate)
+
+    # -------------------------------------------------------------------------
     def synthesize(self, text: str, text_is_phonemes: bool = False) -> bytes:
         """Synthesize WAV bytes from text"""
         if not self.model:
@@ -223,9 +295,16 @@ class Synthesizer:
             speaker_embedding=self.speaker_embedding,
             gst_style=self.gst_style,
             text_is_phonemes=text_is_phonemes,
+            ap_vocoder=self.ap_vocoder,
+            scale_factors=self.scale_factors,
         )
 
         with io.BytesIO() as wav_io:
-            self.ap.save_wav(wav, wav_io)
+            if self.ap_vocoder:
+                # Use vocoder sample rate
+                self.ap_vocoder.save_wav(wav, wav_io)
+            else:
+                # Use original sample rate
+                self.ap.save_wav(wav, wav_io)
 
             return wav_io.getvalue()
