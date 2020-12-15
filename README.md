@@ -18,12 +18,22 @@ Once installed, you can run a [web server](#web-server) and test it out at http:
 * [gruut](https://github.com/rhasspy/gruut)
 * [rhasspy/TTS](https://github.com/rhasspy/TTS) (MozillaTTS fork, `dev` branch)
 
-## Voices
+## Pre-Trained Models
 
-* Dutch (`nl`)
-    * [nl-rdh](https://github.com/rhasspy/nl_larynx-rdh)
-        * `docker pull rhasspy/larynx:nl-rdh-1`
-        * [Samples](https://github.com/rhasspy/nl_larynx-rdh/blob/master/samples)
+Models and Docker images are available here:
+
+* Dutch
+    * [nl_larynx-rdh](https://github.com/rhasspy/nl_larynx-rdh)
+* German
+    * [de_larynx-thorsten](https://github.com/rhasspy/de_larynx-thorsten)
+* French
+    * [fr_larynx-siwis](https://github.com/rhasspy/fr_larynx-siwis)
+* Spanish
+    * [es_larynx-css10](https://github.com/rhasspy/es_larynx-css10)
+* Russian
+    * [ru_larynx-nikolaev](https://github.com/rhasspy/ru_larynx-nikolaev)
+
+If you use Home Assistant, these are also available as [Hass.io add-ons](https://github.com/rhasspy/hassio-addons/)
 
 ## Differences from MozillaTTS
 
@@ -159,22 +169,3 @@ Endpoints:
     * `POST` with text body
 * `/process` - compatibility endpoint to emulate [MaryTTS](http://mary.dfki.de/)
     * `GET` with `?INPUT_TEXT=...`
-    
----
-
-## Pre-Trained Models
-
-Models and Docker images are available here:
-
-* Dutch
-    * [nl_larynx-rdh](https://github.com/rhasspy/nl_larynx-rdh)
-* German
-    * [de_larynx-thorsten](https://github.com/rhasspy/de_larynx-thorsten)
-* French
-    * [fr_larynx-siwis](https://github.com/rhasspy/fr_larynx-siwis)
-* Spanish
-    * [es_larynx-css10](https://github.com/rhasspy/es_larynx-css10)
-* Russian
-    * [ru_larynx-nikolaev](https://github.com/rhasspy/ru_larynx-nikolaev)
-
-If you use Home Assistant, these are also available as [Hass.io add-ons](https://github.com/rhasspy/hassio-addons/)
