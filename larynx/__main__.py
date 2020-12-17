@@ -455,7 +455,7 @@ def do_init(args):
     tts_config["run_name"] = model_name
 
     tts_config["audio"]["sample_rate"] = sample_rate
-    tts_config["audio"]["do_trim_silence"] = False
+    tts_config["audio"]["do_trim_silence"] = True
     tts_config["audio"]["signal_norm"] = True
 
     tts_config["output_path"] = str(model_dir / "model")
@@ -507,8 +507,8 @@ def do_init(args):
     tts_config["text_cleaner"] = "no_cleaners"
 
     # Delay testing a little later and do it less frequently
-    tts_config["test_delay_epochs"] = 1000
-    tts_config["test_n_epochs"] = 100
+    tts_config["test_delay_epochs"] = 100
+    tts_config["test_n_epochs"] = 10
 
     # Test sentences
     test_sentences = _TEST_SENTENCES.get(language)
