@@ -23,8 +23,8 @@ function maybe_download {
     fi
 }
 
-gruut_file="${download}/gruut-0.4.0.tar.gz"
-gruut_url='https://github.com/rhasspy/gruut/archive/v0.4.0.tar.gz'
+gruut_file="${download}/gruut-0.5.0.tar.gz"
+gruut_url='https://github.com/rhasspy/gruut/archive/v0.5.0.tar.gz'
 
 maybe_download "${gruut_url}" "${gruut_file}"
 
