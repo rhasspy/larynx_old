@@ -224,10 +224,6 @@ def _compute_phonemes(
                         clean_words,
                     )
 
-        sequence.extend(
-            phonemes[p] for ps in word_phonemes for p in ps if p in phonemes
-        )
-
         return item_id, np.array(sequence, dtype=np.int32)
 
     _LOGGER.debug("Phonemizing...")
