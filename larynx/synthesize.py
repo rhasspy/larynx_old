@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import io
 import json
+import logging
 import os
 import time
 
@@ -13,6 +14,8 @@ from TTS.tts.utils.text.symbols import make_symbols
 from TTS.utils.audio import AudioProcessor
 from TTS.utils.io import load_config
 from TTS.vocoder.utils.generic_utils import setup_generator
+
+_LOGGER = logging.getLogger("larynx.synthesize")
 
 
 def tts(

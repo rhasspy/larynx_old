@@ -11,7 +11,6 @@ import string
 import subprocess
 import sys
 import typing
-import wave
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -139,7 +138,7 @@ def _compute_phonemes(
 ):
     """Tokenize and phonemize transcripts"""
     import numpy as np
-    import phonetisaurus
+    from gruut_ipa import IPA
 
     _LOGGER.debug("Generating phonemes")
 
@@ -214,9 +213,23 @@ def _compute_phonemes(
 
         # Convert to integer sequence.
         # Drop unknown phonemes.
-        sequence.extend(
-            phonemes[p] for ps in word_phonemes for p in ps if p in phonemes
-        )
+        for pron in word_phonemes:
+            for phoneme in pron:
+                if phoneme:
+                    if IPA.is_stress(phoneme[0]):
+                        sequence.append(phonemes[phoneme[0]])
+                        phoneme = IPA.without_stress(phoneme)
+
+                phoneme_idx = phonemes.get(phoneme)
+                if phoneme_idx is not None:
+                    sequence.append(phoneme_idx)
+                else:
+                    _LOGGER.warning(
+                        "Dropped phoneme %s from %s: '%s'",
+                        phoneme,
+                        item_id,
+                        clean_words,
+                    )
 
         return item_id, np.array(sequence, dtype=np.int32)
 
@@ -462,7 +475,7 @@ def do_init(args):
     tts_config["run_name"] = model_name
 
     tts_config["audio"]["sample_rate"] = sample_rate
-    tts_config["audio"]["do_trim_silence"] = False
+    tts_config["audio"]["do_trim_silence"] = True
     tts_config["audio"]["signal_norm"] = True
 
     tts_config["output_path"] = str(model_dir / "model")
@@ -514,8 +527,8 @@ def do_init(args):
     tts_config["text_cleaner"] = "no_cleaners"
 
     # Delay testing a little later and do it less frequently
-    tts_config["test_delay_epochs"] = 1000
-    tts_config["test_n_epochs"] = 100
+    tts_config["test_delay_epochs"] = 100
+    tts_config["test_n_epochs"] = 10
 
     # Test sentences
     test_sentences = _TEST_SENTENCES.get(language)
