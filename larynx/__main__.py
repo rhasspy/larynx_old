@@ -80,6 +80,13 @@ _TEST_SENTENCES = {
         "Uma só língua nunca basta.",
         "﻿O meu hovercraft está cheio de enguias.",
     ],
+    "vi-n": [
+        "Khoẻ, cám ơn. Bạn thì sao?",
+        "Bạn có thể nhắc lại được không?",
+        "Em có hay đến đây không?",
+        "Một thứ tiếng thì không bao giờ đủ",
+        "Tàu cánh ngầm của tôi đầy lươn",
+    ],
 }
 
 # -----------------------------------------------------------------------------
