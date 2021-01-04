@@ -768,6 +768,7 @@ def do_synthesize(args):
 
 def do_serve(args):
     """Run web server for synthesis"""
+    import json5
     from larynx.server import get_app
     from larynx.synthesize import Synthesizer
 
@@ -797,8 +798,20 @@ def do_serve(args):
     else:
         logging.getLogger().setLevel(logging.INFO)
 
-    # Load language
-    gruut_lang = gruut.Language.load(synthesizer.config.phoneme_language)
+    # Load TTS config
+    with open(args.config, "r") as tts_config_file:
+        tts_config = json5.load(tts_config_file)
+
+    if tts_config.get("phoneme_backend") == "gruut":
+        # Using gruut
+        gruut_lang = gruut.Language.load(synthesizer.config.phoneme_language)
+        assert (
+            gruut_lang
+        ), f"Unsupported gruut language: {synthesizer.config.phoneme_language}"
+    else:
+        # Using phonemizer
+        gruut_lang = None
+        _LOGGER.debug("Using phonemizer instead of gruut")
 
     # Run web server
     app = get_app(synthesizer, gruut_lang=gruut_lang, cache_dir=args.cache_dir)

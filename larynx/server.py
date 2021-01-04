@@ -109,19 +109,20 @@ def get_app(
         else:
             text = request.args.get("text", "")
 
-        assert gruut_lang, "No gruut language set"
         text_phonemes = []
-        for sentence in gruut_lang.tokenizer.tokenize(text):
-            # Use first pronunciation
-            word_phonemes = [
-                wp[0]
-                for wp in gruut_lang.phonemizer.phonemize(
-                    sentence.clean_words, word_indexes=True, word_breaks=True
-                )
-                if wp
-            ]
+        if gruut_lang:
+            # Use gruut
+            for sentence in gruut_lang.tokenizer.tokenize(text):
+                # Use first pronunciation
+                word_phonemes = [
+                    wp[0]
+                    for wp in gruut_lang.phonemizer.phonemize(
+                        sentence.clean_words, word_indexes=True, word_breaks=True
+                    )
+                    if wp
+                ]
 
-            text_phonemes.extend(p for ps in word_phonemes for p in ps)
+                text_phonemes.extend(p for ps in word_phonemes for p in ps)
 
         return "".join(text_phonemes)
 

@@ -42,8 +42,10 @@
           <input id="text" placeholder="Type here..." size=45 type="text" name="text">
           <button id="speak-button" name="speak">Speak</button>
 
+          {% if lang: %}
           <input id="phonemes" name="phonemes" type="checkbox" class="ml-2">
           <label for="phonemes" title="Input text is phonemes">Phonemes</label>
+          {% endif %}
           <p id="text-phonemes"></p>
 
           <audio id="audio" controls autoplay hidden></audio>
@@ -112,7 +114,11 @@
                 q('#text-phonemes').innerHTML = ''
                 q('#text-phonemes').alt = text
 
-                phonemes = q('#phonemes').checked.toString()
+                {% if lang: %}
+                phonemes = q('#phonemes').checked.toString() == 'true'
+                {% else: %}
+                phonemes = false
+                {% endif %}
 
                 fetch('/api/tts?text=' + encodeURIComponent(text) + '&phonemes=' + encodeURIComponent(phonemes), {cache: 'no-cache'})
                     .then(function(res) {
@@ -124,9 +130,10 @@
                             q('#audio').src = URL.createObjectURL(blob)
                             q('#audio').hidden = false
 
-                            if (phonemes == 'true') {
+                            if (phonemes) {
                                 q('#text-phonemes').innerHTML = text
                             } else {
+                                {% if lang: %}
                                 fetch('/api/phonemize?text=' + encodeURIComponent(text), {cache: 'no-cache'})
                                     .then(function(res) {
                                         if (res.ok) {
@@ -136,6 +143,7 @@
                                     .then(function(text) {
                                         q('#text-phonemes').innerHTML = text
                                     })
+                                {% endif %}
                             }
                         }).catch(function(err) {
                             q('#message').textContent = 'Error: ' + err.message
