@@ -5,6 +5,7 @@ import logging
 import os
 import time
 
+import numpy as np
 import torch
 
 from TTS.tts.utils.generic_utils import setup_model
@@ -67,7 +68,8 @@ def tts(
         else:
             vocoder_input = torch.tensor(vocoder_input).unsqueeze(0)
 
-        waveform = vocoder_model.inference(vocoder_input)
+        device_type = "cuda" if use_cuda else "cpu"
+        waveform = vocoder_model.inference(vocoder_input.to(device_type))
 
     if use_cuda and not use_gl:
         waveform = waveform.cpu()
@@ -233,6 +235,11 @@ class Synthesizer:
             if self.use_cuda:
                 vocoder_model.cuda()
             vocoder_model.eval()
+
+            if hasattr(vocoder_model, "compute_noise_level"):
+                # Use if not computed noise schedule with tune_wavegrad
+                beta = np.linspace(1e-6, 0.01, 50)
+                vocoder_model.compute_noise_level(beta)
         else:
             vocoder_model = None
             VC = None
@@ -281,6 +288,7 @@ class Synthesizer:
             self.scale_factors = (1, self.ap_vocoder.sample_rate / self.ap.sample_rate)
 
     # -------------------------------------------------------------------------
+
     def synthesize(self, text: str, text_is_phonemes: bool = False) -> bytes:
         """Synthesize WAV bytes from text"""
         if not self.model:
