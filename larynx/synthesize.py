@@ -98,6 +98,7 @@ class Synthesizer:
         speakers_json="",
         speaker_fileid=None,
         gst_style=None,
+        wavegrad_iters=50,
     ):
         self.config_path = config_path
         self.model_path = model_path
@@ -108,6 +109,7 @@ class Synthesizer:
         self.speakers_json = speakers_json
         self.speaker_fileid = speaker_fileid
         self.gst_style = gst_style
+        self.wavegrad_iters = wavegrad_iters
 
         self.model = None
 
@@ -237,8 +239,19 @@ class Synthesizer:
             vocoder_model.eval()
 
             if hasattr(vocoder_model, "compute_noise_level"):
-                # Use if not computed noise schedule with tune_wavegrad
-                beta = np.linspace(1e-6, 0.01, 50)
+                noise_schedule_path = os.path.join(
+                    os.path.dirname(self.vocoder_path), "noise_schedule.npy"
+                )
+                if os.path.isfile(noise_schedule_path):
+                    _LOGGER.debug("Loading noise schedule from %s", noise_schedule_path)
+                    beta = np.load(noise_schedule_path, allow_pickle=True).tolist()[
+                        "beta"
+                    ]
+                else:
+                    # Use if not computed noise schedule with tune_wavegrad
+                    _LOGGER.debug("Using default noise schedule")
+                    beta = np.linspace(1e-6, 0.01, self.wavegrad_iters)
+
                 vocoder_model.compute_noise_level(beta)
         else:
             vocoder_model = None

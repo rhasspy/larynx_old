@@ -657,6 +657,7 @@ def do_synthesize(args):
         use_cuda=args.use_cuda,
         vocoder_path=args.vocoder_model,
         vocoder_config_path=args.vocoder_config,
+        wavegrad_iters=args.wavegrad_iters,
     )
 
     synthesizer.load()
@@ -683,6 +684,8 @@ def do_synthesize(args):
         texts = args.text
     else:
         texts = sys.stdin
+
+    _LOGGER.info("Ready")
 
     try:
         # Process sentences line by line
@@ -1083,6 +1086,9 @@ def get_args() -> argparse.Namespace:
     )
     synthesize_parser.add_argument(
         "--accent-language", help="Map phonemes from accent language"
+    )
+    synthesize_parser.add_argument(
+        "--wavegrad-iters", default=50, help="Number of iterations for wavegrad vocoder"
     )
     synthesize_parser.set_defaults(func=do_synthesize)
 
