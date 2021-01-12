@@ -52,6 +52,29 @@ if [[ -n "${PROXY}" ]]; then
     DOCKERFILE="${temp_dockerfile}"
 fi
 
+# -----------------------------------------------------------------------------
+
+# Determine docker tags
+tags=()
+
+TAG_POSTFIX=''
+if [[ -n "${NOAVX}" ]]; then
+    # Image will use PyTorch compiled without AVX instructions.
+    # This will work with older CPUs like the Celeron.
+    TAG_POSTFIX='-noavx'
+
+    # Latest no AVX
+    tags+=(--tag "${DOCKER_REGISTRY}/rhasspy/larynx:noavx")
+else
+    # Latest (with AVX)
+    tags+=(--tag "${DOCKER_REGISTRY}/rhasspy/larynx:latest")
+fi
+
+# Specific version with or without AVX
+tags+=(--tag "${DOCKER_REGISTRY}/rhasspy/larynx:${version}${TAG_POSTFIX}")
+
+# -----------------------------------------------------------------------------
+
 if [[ -n "${NOBUILDX}" ]]; then
     # Don't use docker buildx (single platform)
 
@@ -90,8 +113,7 @@ if [[ -n "${NOBUILDX}" ]]; then
            --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
            --build-arg "TARGETARCH=${TARGETARCH}" \
            --build-arg "TARGETVARIANT=${TARGETVARIANT}" \
-           --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${version}" \
-           --tag "${DOCKER_REGISTRY}/rhasspy/larynx:latest" \
+           "${tags[@]}" \
            "$@"
 else
     # Use docker buildx (multi-platform)
@@ -100,8 +122,7 @@ else
            -f "${DOCKERFILE}" \
            "--platform=${PLATFORMS}" \
            --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
-           --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${version}" \
-           --tag "${DOCKER_REGISTRY}/rhasspy/larynx:latest" \
+           "${tags[@]}" \
            --push \
            "$@"
 fi

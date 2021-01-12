@@ -44,6 +44,12 @@ fi
 while read -r voice_dir; do
     voice_name="$(basename "${voice_dir}")"
     version="$(cat "${voice_dir}/VERSION")"
+    LARYNX_TAG='latest'
+
+    if [[ -n "${NOAVX}" ]]; then
+        LARYNX_TAG='noavx'
+        TAG_POSTFIX='-noavx'
+    fi
 
     echo "Building voice ${voice_name} version ${version}..."
 
@@ -55,7 +61,8 @@ while read -r voice_dir; do
                "${src_dir}" \
                -f "${DOCKERFILE}" \
                --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
-               --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${voice_name}-${version}" \
+               --build-arg "LARYNX_TAG=${LARYNX_TAG}" \
+               --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${voice_name}-${version}${TAG_POSTFIX}" \
                "$@"
     else
         # Use docker buildx (multi-platform)
@@ -64,7 +71,8 @@ while read -r voice_dir; do
                -f "${DOCKERFILE}" \
                "--platform=${PLATFORMS}" \
                --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
-               --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${voice_name}-${version}" \
+               --build-arg "LARYNX_TAG=${LARYNX_TAG}" \
+               --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${voice_name}-${version}${TAG_POSTFIX}" \
                --push \
                "$@"
     fi

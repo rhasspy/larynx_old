@@ -35,7 +35,16 @@ COPY requirements.txt /app/
 COPY scripts/create-venv.sh /app/scripts/
 COPY TTS/ /app/TTS/
 
-COPY download/ /app/download/
+
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+COPY download/$TARGETARCH$TARGETVARIANT/ /app/download/
+COPY download/shared/ /app/download/
+
+# IFDEF NOAVX
+#! RUN mv /app/download/noavx/* /app/download/
+# ENDIF
 
 RUN cd /app && \
     export stage=0 end_stage=0 && \
