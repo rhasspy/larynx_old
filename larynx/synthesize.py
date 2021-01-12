@@ -300,6 +300,14 @@ class Synthesizer:
         if self.ap_vocoder and (self.ap.sample_rate != self.ap_vocoder.sample_rate):
             self.scale_factors = (1, self.ap_vocoder.sample_rate / self.ap.sample_rate)
 
+    @property
+    def sample_rate(self) -> int:
+        """Get output sample rate"""
+        if self.ap_vocoder:
+            return self.ap_vocoder.sample_rate
+
+        return self.ap.sample_rate
+
     # -------------------------------------------------------------------------
 
     def synthesize(self, text: str, text_is_phonemes: bool = False) -> bytes:

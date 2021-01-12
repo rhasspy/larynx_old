@@ -39,51 +39,63 @@
           <p class="text-muted">
               Based on <a href="https://github.com/mozilla/TTS">MozillaTTS</a>
           </p>
-          <input id="text" placeholder="Type here..." size=45 type="text" name="text">
-          <button id="speak-button" name="speak">Speak</button>
-
-          {% if lang: %}
-          <input id="phonemes" name="phonemes" type="checkbox" class="ml-2">
-          <label for="phonemes" title="Input text is phonemes">Phonemes</label>
-          {% endif %}
-          <p id="text-phonemes"></p>
-
-          <audio id="audio" controls autoplay hidden></audio>
-          <p id="message"></p>
+        </div>
+      </div>
+      <div class="row">
+          <div class="col">
+              <textarea id="text" placeholder="Type here..." class="form-control" rows="3" name="text"></textarea>
+          </div>
+          <div class="col-auto">
+              <button id="speak-button" name="speak" class="btn btn-lg btn-primary">Speak</button>
+              {% if lang: %}
+              <br><br>
+              <input id="phonemes" name="phonemes" type="checkbox" class="ml-2">
+              <label for="phonemes" title="Input text is phonemes">Phonemes</label>
+              {% endif %}
+          </div>
+      </div>
+      <div class="row mt-3">
+          <div class="col text-center">
+              <p id="text-phonemes"></p>
+              <audio id="audio" controls autoplay hidden></audio>
+              <p id="message"></p>
+          </div>
         </div>
       </div>
 
       {% if lang: %}
       <div class="row">
-          <table class="table">
-              <thead>
-                  <th>
-                      <a href="https://en.wikipedia.org/wiki/International_Phonetic_Alphabet">IPA</a>
-                  </th>
-                  <th>Example</th>
-              </thead>
-              <tr>
-                  <td>#</td>
-                  <td>Word break</td>
-              </tr>
-              <tr>
-                  <td>|</td>
-                  <td>Minor break (,)</td>
-              </tr>
-              <tr>
-                  <td>‖</td>
-                  <td>Major break (.)</td>
-              </tr>
-              {% for phoneme in lang.phonemes %}
-              <tr>
-                  <td>{{ phoneme.text }}</td>
-                  <td>{{ phoneme.example }}</td>
-              </tr>
-              {% endfor %}
-          </table>
-          <br>
-          <div class="text-muted">
-              See <a href="https://www.ipachart.com/" target="_blank" title="IPA chart with sounds">IPA chart</a> for sounds
+          <div class="col text-center">
+              <table class="table table-striped">
+                  <thead>
+                      <th>
+                          <a href="https://en.wikipedia.org/wiki/International_Phonetic_Alphabet">IPA</a>
+                      </th>
+                      <th>Example</th>
+                  </thead>
+                  <tr>
+                      <td>#</td>
+                      <td>Word break</td>
+                  </tr>
+                  <tr>
+                      <td>|</td>
+                      <td>Minor break (,)</td>
+                  </tr>
+                  <tr>
+                      <td>‖</td>
+                      <td>Major break (.)</td>
+                  </tr>
+                  {% for phoneme in lang.phonemes %}
+                  <tr>
+                      <td>{{ phoneme.text }}</td>
+                      <td>{{ phoneme.example }}</td>
+                  </tr>
+                  {% endfor %}
+              </table>
+              <br>
+              <div class="text-muted">
+                  See <a href="https://www.ipachart.com/" target="_blank" title="IPA chart with sounds">IPA chart</a> for sounds
+              </div>
           </div>
       </div>
       {% endif %}
@@ -105,11 +117,6 @@
                 return false
             }
             q('#speak-button').addEventListener('click', do_tts)
-            q('#text').addEventListener('keyup', function(e) {
-              if (e.keyCode == 13) { // enter
-                do_tts(e)
-              }
-            })
             function synthesize(text) {
                 q('#text-phonemes').innerHTML = ''
                 q('#text-phonemes').alt = text

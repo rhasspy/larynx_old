@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Web server for synthesis"""
 import hashlib
+import io
 import logging
 import time
 import typing
 import uuid
+import wave
 from pathlib import Path
 
 from flask import Flask, Response, render_template, request, send_from_directory
@@ -28,6 +30,8 @@ def get_app(
     cache_dir: typing.Optional[typing.Union[str, Path]] = None,
 ):
     """Create Flask app and endpoints"""
+    sample_rate = synthesizer.sample_rate
+
     if cache_dir:
         cache_dir = Path(cache_dir)
         cache_dir.mkdir(parents=True, exist_ok=True)
@@ -51,7 +55,39 @@ def get_app(
         if not wav_bytes:
             _LOGGER.debug("Synthesizing...")
             start_time = time.time()
-            wav_bytes = synthesizer.synthesize(text, text_is_phonemes=text_is_phonemes)
+
+            # Synthesize each line separately.
+            # Accumulate into a single WAV file.
+            with io.BytesIO() as wav_io:
+                with wave.open(wav_io, "wb") as wav_file:
+                    wav_file.setframerate(sample_rate)
+                    wav_file.setsampwidth(2)
+                    wav_file.setnchannels(1)
+
+                    for line_index, line in enumerate(text.strip().splitlines()):
+                        _LOGGER.debug(
+                            "Synthesizing line %s (%s char(s))",
+                            line_index + 1,
+                            len(line),
+                        )
+                        line_wav_bytes = synthesizer.synthesize(
+                            line, text_is_phonemes=text_is_phonemes
+                        )
+                        _LOGGER.debug(
+                            "Got %s WAV byte(s) for line %s",
+                            len(line_wav_bytes),
+                            line_index + 1,
+                        )
+
+                        # Open up and add to main WAV
+                        with io.BytesIO(line_wav_bytes) as line_wav_io:
+                            with wave.open(line_wav_io) as line_wav_file:
+                                wav_file.writeframes(
+                                    line_wav_file.readframes(line_wav_file.getnframes())
+                                )
+
+                wav_bytes = wav_io.getvalue()
+
             end_time = time.time()
 
             _LOGGER.debug(
