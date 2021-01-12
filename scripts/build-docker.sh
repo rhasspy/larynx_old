@@ -14,20 +14,30 @@ version="$(cat "${src_dir}/VERSION")"
 
 : "${PLATFORMS=linux/amd64,linux/arm/v7,linux/arm64}"
 : "${DOCKER_REGISTRY=docker.io}"
-: "${DOCKER_BUILDX=1}"
 
 DOCKERFILE="${src_dir}/Dockerfile"
 
+if [[ -n "${NOBUILDX}" ]]; then
+    DOCKERFILE="${DOCKERFILE}.nobuildx"
+fi
+
 if [[ -n "${PROXY}" ]]; then
-    if [[ -z "${PROXY_IP}" ]]; then
-        export PROXY_IP="$(hostname -I | awk '{print $1}')"
+    if [[ -z "${PROXY_HOST}" ]]; then
+        export PROXY_HOST="$(hostname -I | awk '{print $1}')"
     fi
 
-    export PROXY_PORT=3142
-    export PROXY="${PROXY_IP}:${PROXY_PORT}"
-    export PYPI_PORT=4000
-    export PYPI="${PROXY_IP}:${PYPI_PORT}"
-    export PYPI_HOST="${PROXY_IP}"
+    : "${APT_PROXY_HOST=${PROXY_HOST}}"
+    : "${APT_PROXY_PORT=3142}"
+    : "${PYPI_PROXY_HOST=${PROXY_HOST}}"
+    : "${PYPI_PROXY_PORT=4000}"
+
+    export APT_PROXY_HOST
+    export APT_PROXY_PORT
+    export PYPI_PROXY_HOST
+    export PYPI_PROXY_PORT
+
+    echo "APT proxy: ${APT_PROXY_HOST}:${APT_PROXY_PORT}"
+    echo "PyPI proxy: ${PYPI_PROXY_HOST}:${PYPI_PROXY_PORT}"
 
     # Use temporary file instead
     temp_dockerfile="$(mktemp -p "${src_dir}")"
@@ -42,7 +52,49 @@ if [[ -n "${PROXY}" ]]; then
     DOCKERFILE="${temp_dockerfile}"
 fi
 
-if [[ -n "${DOCKER_BUILDX}" ]]; then
+if [[ -n "${NOBUILDX}" ]]; then
+    # Don't use docker buildx (single platform)
+
+    if [[ -z "${TARGETARCH}" ]]; then
+        # Guess architecture
+        cpu_arch="$(uname -m)"
+        case "${cpu_arch}" in
+            armv6l)
+                export TARGETARCH=arm
+                export TARGETVARIANT=v6
+                ;;
+
+            armv7l)
+                export TARGETARCH=arm
+                export TARGETVARIANT=v7
+                ;;
+
+            aarch64|arm64v8)
+                export TARGETARCH=arm64
+                export TARGETVARIANT=''
+                ;;
+
+            *)
+                # Assume x86_64
+                export TARGETARCH=amd64
+                export TARGETVARIANT=''
+                ;;
+        esac
+
+        echo "Guessed architecture: ${TARGETARCH}${TARGETVARIANT}"
+    fi
+
+    docker build \
+           "${src_dir}" \
+           -f "${DOCKERFILE}" \
+           --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
+           --build-arg "TARGETARCH=${TARGETARCH}" \
+           --build-arg "TARGETVARIANT=${TARGETVARIANT}" \
+           --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${version}" \
+           --tag "${DOCKER_REGISTRY}/rhasspy/larynx:latest" \
+           "$@"
+else
+    # Use docker buildx (multi-platform)
     docker buildx build \
            "${src_dir}" \
            -f "${DOCKERFILE}" \
@@ -51,13 +103,5 @@ if [[ -n "${DOCKER_BUILDX}" ]]; then
            --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${version}" \
            --tag "${DOCKER_REGISTRY}/rhasspy/larynx:latest" \
            --push \
-           "$@"
-else
-    docker build \
-           "${src_dir}" \
-           -f "${DOCKERFILE}" \
-           --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
-           --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${version}" \
-           --tag "${DOCKER_REGISTRY}/rhasspy/larynx:latest" \
            "$@"
 fi
