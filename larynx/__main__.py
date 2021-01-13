@@ -664,6 +664,7 @@ def do_synthesize(args):
         use_cuda=args.use_cuda,
         vocoder_path=args.vocoder_model,
         vocoder_config_path=args.vocoder_config,
+        wavegrad_iters=args.wavegrad_iters,
     )
 
     synthesizer.load()
@@ -690,6 +691,8 @@ def do_synthesize(args):
         texts = args.text
     else:
         texts = sys.stdin
+
+    _LOGGER.info("Ready")
 
     try:
         # Process sentences line by line
@@ -775,6 +778,7 @@ def do_synthesize(args):
 
 def do_serve(args):
     """Run web server for synthesis"""
+    import json5
     from larynx.server import get_app
     from larynx.synthesize import Synthesizer
 
@@ -804,8 +808,20 @@ def do_serve(args):
     else:
         logging.getLogger().setLevel(logging.INFO)
 
-    # Load language
-    gruut_lang = gruut.Language.load(synthesizer.config.phoneme_language)
+    # Load TTS config
+    with open(args.config, "r") as tts_config_file:
+        tts_config = json5.load(tts_config_file)
+
+    if tts_config.get("phoneme_backend") == "gruut":
+        # Using gruut
+        gruut_lang = gruut.Language.load(synthesizer.config.phoneme_language)
+        assert (
+            gruut_lang
+        ), f"Unsupported gruut language: {synthesizer.config.phoneme_language}"
+    else:
+        # Using phonemizer
+        gruut_lang = None
+        _LOGGER.debug("Using phonemizer instead of gruut")
 
     # Run web server
     app = get_app(synthesizer, gruut_lang=gruut_lang, cache_dir=args.cache_dir)
@@ -1083,6 +1099,9 @@ def get_args() -> argparse.Namespace:
     )
     synthesize_parser.add_argument(
         "--accent-language", help="Map phonemes from accent language"
+    )
+    synthesize_parser.add_argument(
+        "--wavegrad-iters", default=50, help="Number of iterations for wavegrad vocoder"
     )
     synthesize_parser.set_defaults(func=do_synthesize)
 

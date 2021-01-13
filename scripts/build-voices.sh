@@ -44,47 +44,37 @@ fi
 while read -r voice_dir; do
     voice_name="$(basename "${voice_dir}")"
     version="$(cat "${voice_dir}/VERSION")"
+    LARYNX_TAG='latest'
+
+    if [[ -n "${NOAVX}" ]]; then
+        LARYNX_TAG='noavx'
+        TAG_POSTFIX='-noavx'
+    fi
 
     echo "Building voice ${voice_name} version ${version}..."
 
     DOCKERFILE="${voice_dir}/Dockerfile"
 
-    if [[ -n "${PROXY}" ]]; then
-        if [[ -z "${PROXY_IP}" ]]; then
-            export PROXY_IP="$(hostname -I | awk '{print $1}')"
-        fi
-
-        export PROXY_PORT=3142
-        export PROXY="${PROXY_IP}:${PROXY_PORT}"
-        export PYPI_PORT=4000
-        export PYPI="${PROXY_IP}:${PYPI_PORT}"
-        export PYPI_HOST="${PROXY_IP}"
-
-        # Use temporary file instead
-        temp_dockerfile="$(mktemp -p "${voice_dir}")"
-        temp_files+=("${temp_dockerfile}")
-
-        # Run through pre-processor to replace variables
-        "${src_dir}/docker/preprocess.sh" < "${DOCKERFILE}" > "${temp_dockerfile}"
-        DOCKERFILE="${temp_dockerfile}"
-    fi
-
-    if [[ -n "${DOCKER_BUILDX}" ]]; then
-        docker buildx build \
-                "${src_dir}" \
-                -f "${DOCKERFILE}" \
-                "--platform=${PLATFORMS}" \
-                --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
-                --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${voice_name}-${version}" \
-                --push \
-                "$@"
-    else
+    if [[ -n "${NOBUILDX}" ]]; then
+        # Don't use docker buildx (single platform)
         docker build \
-                "${src_dir}" \
-                -f "${DOCKERFILE}" \
-                --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
-                --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${voice_name}-${version}" \
-                "$@"
+               "${src_dir}" \
+               -f "${DOCKERFILE}" \
+               --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
+               --build-arg "LARYNX_TAG=${LARYNX_TAG}" \
+               --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${voice_name}-${version}${TAG_POSTFIX}" \
+               "$@"
+    else
+        # Use docker buildx (multi-platform)
+        docker buildx build \
+               "${src_dir}" \
+               -f "${DOCKERFILE}" \
+               "--platform=${PLATFORMS}" \
+               --build-arg "DOCKER_REGISTRY=${DOCKER_REGISTRY}" \
+               --build-arg "LARYNX_TAG=${LARYNX_TAG}" \
+               --tag "${DOCKER_REGISTRY}/rhasspy/larynx:${voice_name}-${version}${TAG_POSTFIX}" \
+               --push \
+               "$@"
     fi
 
 done < "${voice_names}"
