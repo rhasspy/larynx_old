@@ -565,9 +565,16 @@ def do_init(args):
     vocoder_dir = model_dir / "vocoder"
     vocoder_dir.mkdir(parents=True, exist_ok=True)
 
-    vocoder_config_in_path = (
-        tts_dir / "TTS" / "vocoder" / "configs" / "multiband_melgan_config.json"
-    )
+    if args.vocoder_model_type == "multiband-melgan":
+        vocoder_config_in_path = (
+            tts_dir / "TTS" / "vocoder" / "configs" / "multiband_melgan_config.json"
+        )
+    elif args.vocoder_model_type == "fullband-melgan":
+        vocoder_config_in_path = (
+            tts_dir / "TTS" / "vocoder" / "configs" / "universal_fullband_melgan.json"
+        )
+    else:
+        raise ValueError(f"Unknown vocoder model type: {args.vocoder_model_type}")
 
     _LOGGER.debug("Loading vocoder config template from %s", vocoder_config_in_path)
     with open(vocoder_config_in_path, "r") as vocoder_config_file:
@@ -978,6 +985,12 @@ def get_args() -> argparse.Namespace:
         "--vocoder-batch-size",
         type=int,
         help="Batch size for vocoder (default: config value)",
+    )
+    init_parser.add_argument(
+        "--vocoder-model-type",
+        default="multiband-melgan",
+        choices=["multiband-melgan", "fullband-melgan"],
+        help="Type of MozillaTTS vocoder model (default: multiband-melgan)",
     )
     init_parser.add_argument(
         "--no-word-breaks",
