@@ -10,7 +10,8 @@
 # -----------------------------------------------------------------------------
 
 ARG DOCKER_REGISTRY
-FROM $DOCKER_REGISTRY/rhasspy/larynx
+ARG LARYNX_TAG=latest
+FROM $DOCKER_REGISTRY/rhasspy/larynx:$LARYNX_TAG
 
 COPY voices/en-kathleen/tts/ /app/voice/tts/
 COPY voices/en-kathleen/vocoder/ /app/voice/vocoder/

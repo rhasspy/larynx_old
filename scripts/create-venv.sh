@@ -9,7 +9,7 @@ fi
 this_dir="$( cd "$( dirname "$0" )" && pwd )"
 src_dir="$(realpath "${this_dir}/..")"
 
-download_dir="${src_dir}/download"
+: "${DOWNLOAD_DIR=${src_dir}/download}"
 
 # -----------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ function maybe_download {
     fi
 }
 
-gruut_file="${download}/gruut-0.5.0.tar.gz"
+gruut_file="${DOWNLOAD_DIR}/gruut-0.5.0.tar.gz"
 gruut_url='https://github.com/rhasspy/gruut/archive/v0.5.0.tar.gz'
 
 maybe_download "${gruut_url}" "${gruut_file}"
@@ -76,7 +76,7 @@ fi
 # Stage 2: install torch
 if [[ "${stage}" -le 2 && "${end_stage}" -ge 2 ]]; then
     # Install torch
-    CPU_ARCH="$(uname --m)"
+    CPU_ARCH="$(uname -m)"
     case "${CPU_ARCH}" in
         aarch64|arm64v8)
             PLATFORM=aarch64
@@ -87,10 +87,12 @@ if [[ "${stage}" -le 2 && "${end_stage}" -ge 2 ]]; then
             ;;
     esac
 
-    torch_wheel="${download_dir}/torch-1.6.0-cp37-cp37m-linux_${PLATFORM}.whl"
+    torch_wheel="${DOWNLOAD_DIR}/torch-1.6.0-cp37-cp37m-linux_${PLATFORM}.whl"
     if [[ -f "${torch_wheel}" ]]; then
         echo 'Using local torch wheel'
         pip3 ${PIP_INSTALL} "${torch_wheel}"
+    else
+        echo "No torch wheel found at ${torch_wheel}"
     fi
 fi
 

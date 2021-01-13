@@ -31,6 +31,8 @@ RUN apt-get update && \
 #! ENV PIP_TRUSTED_HOST=${PYPI_PROXY_HOST}
 # ENDIF
 
+ENV DOWNLOAD_DIR /app/download
+
 COPY requirements.txt /app/
 COPY scripts/create-venv.sh /app/scripts/
 COPY TTS/ /app/TTS/
