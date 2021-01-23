@@ -112,7 +112,7 @@ See `python3 -m larynx init --help` for more options.
 ### Training (Tacotron2)
 
 ```sh
-$ python3 TTS/TTS/bin/train_tts.py \
+$ python3 TTS/TTS/bin/train_tacotron.py \
     --config_path /path/to/model/config.json
 ```
 
