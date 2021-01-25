@@ -135,7 +135,7 @@ $ python3 TTS/TTS/bin/train_vocoder.py \
 ### Synthesis
 
 ```sh
-$ python3 -m larynx synthesis \
+$ python3 -m larynx synthesize \
     --model /path/to/model/<timestamp>/best_model.pth.tar \
     --config /path/to/model/<timestamp>/config.json \
     --vocoder-model /path/to/model/vocoder/<timestamp>/best_model.pth.tar \
