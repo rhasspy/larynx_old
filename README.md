@@ -14,7 +14,7 @@ Once installed, you can run a [web server](#web-server) and test it out at http:
 ## Dependencies
 
 * Python 3.7 or higher
-* [PyTorch](https://pytorch.org/) >= 1.5
+* [PyTorch](https://pytorch.org/) >= 1.6
 * [gruut](https://github.com/rhasspy/gruut)
 * [rhasspy/TTS](https://github.com/rhasspy/TTS) (MozillaTTS fork, `dev` branch)
 
@@ -79,6 +79,8 @@ See `scripts/create-venv.sh`
 
 This includes cloning [rhasspy/TTS](https://github.com/rhasspy/TTS) as a submodule (`dev` branch).
 
+You need to activate the virtual env via `source .venv/bin/activate` and you can leave it via `deactivate`.
+
 ### Docker
 
 A CPU-only Docker image is available at `rhasspy/larynx` with no voices included. See the [voices](#voices) section for Docker images containing specific voices.
@@ -110,8 +112,8 @@ See `python3 -m larynx init --help` for more options.
 ### Training (Tacotron2)
 
 ```sh
-$ python3 TTS/TTS/bin/train_tts.py \
-    --config /path/to/model/config.json
+$ python3 TTS/TTS/bin/train_tacotron.py \
+    --config_path /path/to/model/config.json
 ```
 
 ### Training (GlowTTS)
@@ -120,7 +122,7 @@ You should have added `--model-type glowtts` during initialization.
 
 ```sh
 $ python3 TTS/TTS/bin/train_glow_tts.py \
-    --config /path/to/model/config.json
+    --config_path /path/to/model/config.json
 ```
 
 ### Training (Vocoder)
@@ -133,7 +135,7 @@ $ python3 TTS/TTS/bin/train_vocoder.py \
 ### Synthesis
 
 ```sh
-$ python3 -m larynx synthesis \
+$ python3 -m larynx synthesize \
     --model /path/to/model/<timestamp>/best_model.pth.tar \
     --config /path/to/model/<timestamp>/config.json \
     --vocoder-model /path/to/model/vocoder/<timestamp>/best_model.pth.tar \
